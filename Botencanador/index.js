@@ -180,11 +180,8 @@ async function ligarbot() {
                 }
 
                 if (text === '1') {
-                    // Categoria Vazamentos no Menu 3: orienta direto a abrir um chamado
                     const msgVazamentoTabela = 
-`💧 *Atendimento para Vazamentos:*
-
-Para serviços de vazamento, realizamos uma avaliação no local com equipamentos apropriados (como Geofone/Termografia).
+`Para serviços de vazamentos realizamos uma avaliação no local.
 
 O que deseja fazer agora?
 1️⃣ *Registrar Chamado Agora*
@@ -460,11 +457,10 @@ O que deseja fazer agora?
                 }
 
                 if (text === '1') {
-                    // Selecionou Vazamento no chamado: pula a lista de itens e vai direto para a pergunta de detalhes
                     userData[from].categoria_nome = 'Vazamentos'
                     userData[from].servico = 'Vazamento (Geral)'
                     userState[from] = 'chamado_detalhes'
-                    await escrever('💧 *Serviço selecionado: Vazamento*\n\nPor favor, descreva em detalhes o problema (ex: local do vazamento, se está escorrendo água, se é visível ou embutido, etc.):' + rodapeNavegacao)
+                    await escrever('Para serviços de vazamentos realizamos uma avaliação no local.' + rodapeNavegacao)
                     return
                 }
 
@@ -569,11 +565,8 @@ O que deseja fazer agora?
                 }
 
                 if (text === '1') {
-                    // Categoria Vazamentos no Menu 2: vai direto para a orientação e permite abrir chamado
                     const msgVazamentoOrcamento = 
-`💧 *Orçamento de Vazamento:*
-
-Devido à natureza dos vazamentos (visíveis ou ocultos), o orçamento exato é fornecido após a vistoria técnica no local.
+`Para serviços de vazamentos realizamos uma avaliação no local.
 
 O que deseja fazer agora?
 1️⃣ *Registrar Chamado Agora*
