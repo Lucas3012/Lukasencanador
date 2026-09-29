@@ -11,7 +11,7 @@ git commit -m "Atualizando repositório e arquivos"
 git push origin main --force || git push origin master --force
 
 echo "🤖 Iniciando o Bot (Botencanador/index.js)..."
-node Botencanador/index.js &
+node Botencanador/index.js < /dev/null &
 
 sleep 3
 
