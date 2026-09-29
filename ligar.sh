@@ -7,8 +7,8 @@ echo "=========================================="
 
 echo "📦 Enviando alterações para o GitHub..."
 git add .
-git commit -m "Atualizando número do WhatsApp e arquivos do site"
-git push origin main || git push origin master
+git commit -m "Atualizando número de WhatsApp e arquivos"
+git push origin main --force || git push origin master --force
 
 echo "🤖 Iniciando o Servidor/Bot..."
 node server.js &
