@@ -1,8 +1,98 @@
-<div class="hero-buttons">
-  <a href="https://wa.me/5573981070937?text=2" class="btn-primary" target="_blank">
-    <i class="fa-solid fa-calculator"></i> Pedir Orçamento
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lukas Encanador - Serviços Profissionais</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+  <header>
+    <div class="navbar container">
+      <div class="header-top">
+        <button class="hamburger-btn" id="hamburgerBtn"><i class="fa-solid fa-bars"></i></button>
+        <div class="logo">Lukas <span>Encanador</span></div>
+        <div class="header-spacer"></div>
+      </div>
+      <nav class="nav-menu" id="navMenu">
+        <ul>
+          <li><a href="#servicos">Serviços</a></li>
+          <li><a href="#sobre">Sobre</a></li>
+          <li><a href="#contacto">Contacto</a></li>
+          <li><a href="#" id="btnAdminLogin" class="admin-link"><i class="fa-solid fa-lock"></i> Admin</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Soluções Rápidas de Canalização</h1>
+      <p>Atendimento rápido, limpo e garantido para a sua casa ou empresa.</p>
+      <div class="hero-buttons">
+        <button class="btn-primary" id="btnPedirOrcamento"><i class="fa-solid fa-calculator"></i> Pedir Orçamento</button>
+        <a href="https://wa.me/5573981070937" class="btn-secondary" target="_blank"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="servicos container" id="servicos">
+    <h2>Nossos Serviços</h2>
+    <div class="cards-grid">
+      <div class="card" onclick="exibirInfoServico('Desentupimento', 'Atendimento para canos, esgotos e pias entupidas com equipamentos adequados.')">
+        <div class="icon"><i class="fa-solid fa-faucet-drip"></i></div>
+        <h3>Desentupimento</h3>
+        <p>Serviço rápido para desbloqueio de tubagens.</p>
+      </div>
+      <div class="card" onclick="exibirInfoServico('Reparação de Vazamentos', 'Localização e reparo de fugas de água aparentes ou ocultas.')">
+        <div class="icon"><i class="fa-solid fa-wrench"></i></div>
+        <h3>Vazamentos</h3>
+        <p>Detetamos e reparamos fugas com precisão.</p>
+      </div>
+      <div class="card" onclick="exibirInfoServico('Instalação', 'Instalação de louças sanitárias, torneiras e torneiras de segurança.')">
+        <div class="icon"><i class="fa-solid fa-shower"></i></div>
+        <h3>Instalações</h3>
+        <p>Montagem de sanitários e torneiras.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="contacto container" id="contacto">
+    <h2>Entre em Contacto</h2>
+    <form id="formContacto">
+      <div class="input-group">
+        <input type="text" id="nome" placeholder="Seu Nome" required />
+      </div>
+      <div class="input-group">
+        <input type="tel" id="telefone" placeholder="Telefone / WhatsApp" required />
+      </div>
+      <div class="input-group">
+        <select id="servico" required>
+          <option value="">Selecione o Serviço</option>
+          <option value="Desentupimento">Desentupimento</option>
+          <option value="Vazamento">Reparação de Vazamento</option>
+          <option value="Instalação">Instalações</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <textarea id="mensagem" placeholder="Descreva o seu problema..."></textarea>
+      </div>
+      <button type="submit" class="btn-submit">Enviar Pedido</button>
+    </form>
+  </section>
+
+  <a href="https://wa.me/5573981070937" class="whatsapp-float" target="_blank">
+    <i class="fa-brands fa-whatsapp"></i>
   </a>
-  <a href="https://wa.me/5573981070937" class="btn-secondary" target="_blank">
-    <i class="fa-brands fa-whatsapp"></i> WhatsApp
-  </a>
-</div>
+
+  <footer>
+    <p>&copy; Lukas Encanador. Todos os direitos reservados.</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
+
