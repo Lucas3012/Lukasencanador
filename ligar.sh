@@ -1,17 +1,18 @@
 #!/bin/bash
 
 echo "=========================================="
-echo "🚀 Atualizando GitHub e Iniciando Servidor..."
+echo "🚀 Iniciando Servidor, Bot e Serveo..."
 echo "📱 WhatsApp Ativo: +5573981070937"
 echo "=========================================="
 
-echo "📦 Enviando alterações para o GitHub..."
+# Ajuste do Git para a branch main
 git add .
-git commit -m "Atualizando repositório e arquivos"
-git push origin main --force || git push origin master --force
+git commit -m "Atualizacao automatica"
+git push origin main
 
-echo "🤖 Iniciando o Bot (Botencanador/index.js)..."
-node Botencanador/index.js < /dev/null &
+echo "🤖 Iniciando o Bot Encanador..."
+cd ~/site-encanador/Botencanador
+node index.js &
 
 sleep 3
 

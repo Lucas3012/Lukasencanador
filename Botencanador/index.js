@@ -9,7 +9,6 @@ let jaPareou = false
 // Arquivo local para persistência de dados
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
 
-// Função para ler os chamados salvos
 function carregarChamados() {
     try {
         if (fs.existsSync(ARQUIVO_CHAMADOS)) {
@@ -22,7 +21,6 @@ function carregarChamados() {
     return {}
 }
 
-// Função para salvar um novo chamado
 function salvarChamado(protocolo, dados) {
     try {
         const chamados = carregarChamados()
@@ -37,19 +35,14 @@ function salvarChamado(protocolo, dados) {
     }
 }
 
-// Link do grupo de chamados gerais
 const LINK_GRUPO = 'EwUIug1DbI3IWZGkpbrJ8n' 
-
-// Link do grupo de atendimento/dúvidas/reclamações
 const LINK_GRUPO_ATENDENTE = 'F0UYp2zG5pTAgtSE0dwctX'
 
 const userState = {} 
 const userData = {}
 
-// Função para gerar número de protocolo aleatório com 4 dígitos (1000 a 9999)
 const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
 
-// Tabelas de Serviços por Categoria (Sem Valores)
 const SERVICOS = {
     vazamentos: [
         "Caça-vazamento oculto (Geofone)",
@@ -94,8 +87,15 @@ const SERVICOS = {
 }
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-const question = (text) => new Promise((resolve) => rl.question(text, resolve))
+
+// Função corrigida para abrir a leitura do terminal sob demanda
+const question = (texto) => new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    rl.question(texto, (resposta) => {
+        rl.close()
+        resolve(resposta)
+    })
+})
 
 const MENU_TEXTO = `Olá! 👋 Bem-vindo ao atendimento do Encanador.\n\nEscolha uma opção digitando o número correspondente:\n\n1️⃣ *Solicitar Serviço / Agendar*\n2️⃣ *Orçamento Automático*\n3️⃣ *Tabela de Serviços por Categoria*\n4️⃣ *Regiões de Atendimento & Taxa de Visita*\n5️⃣ *Formas de Pagamento Aceitas*\n6️⃣ *Horário de Funcionamento*\n7️⃣ *Falar com Atendente*\n8️⃣ *Status do Atendimento / Reclamação*`
 
@@ -120,8 +120,6 @@ async function ligarbot() {
             if (info.key && info.key.remoteJid === 'status@broadcast') return
 
             const from = info.key.remoteJid
-
-            // IGNORA MENSAGENS DE GRUPOS E DE CANAIS (NEWSLETTER)
             if (from.endsWith('@g.us') || from.endsWith('@newsletter')) return
 
             await client.readMessages([{ remoteJid: from, id: info.key.id, participant: info.key.participant }])
@@ -148,7 +146,6 @@ async function ligarbot() {
             const estadoAtual = userState[from]
             const rodapeNavegacao = `\n\n─────────────────\n↩️ *9* - Voltar à Pergunta Anterior\n🏠 *0* - Voltar ao Menu Principal`
 
-            // VOLTAR AO MENU PRINCIPAL (0)
             if (text === '0' && estadoAtual !== 'inicio' && estadoAtual !== 'orcamento_pos_opcao' && estadoAtual !== 'tabela_pos_opcao' && estadoAtual !== 'regioes_pos_opcao' && estadoAtual !== 'pagamento_pos_opcao' && estadoAtual !== 'horario_pos_opcao') {
                 userState[from] = 'inicio'
                 delete userData[from]
@@ -156,7 +153,6 @@ async function ligarbot() {
                 return
             }
 
-            // --- MENU INICIAL ---
             if (estadoAtual === 'inicio') {
                 if (text === '1') {
                     userState[from] = 'chamado_nome'
@@ -193,9 +189,6 @@ async function ligarbot() {
                 }
             }
 
-            // ==========================================
-            // SUBMENU: TABELA DE SERVIÇOS (OPÇÃO 3)
-            // ==========================================
             else if (estadoAtual === 'tabela_categoria') {
                 if (text === '9') {
                     userState[from] = 'inicio'
@@ -278,9 +271,6 @@ O que deseja fazer agora?
                 }
             }
 
-            // ==========================================
-            // FLUXO OPÇÃO 8: NOME -> PROTOCOLO -> CHECAGEM PERSISTENTE
-            // ==========================================
             else if (estadoAtual === 'reclamacao_nome') {
                 if (text === '9') {
                     userState[from] = 'inicio'
@@ -339,9 +329,6 @@ O que deseja fazer agora?
                 delete userData[from]
             }
 
-            // ==========================================
-            // FLUXO OPÇÃO 7: FALAR COM ATENDENTE
-            // ==========================================
             else if (estadoAtual === 'atendente_nome') {
                 if (text === '9') {
                     userState[from] = 'inicio'
@@ -425,9 +412,6 @@ O que deseja fazer agora?
                 delete userData[from]
             }
 
-            // ==========================================
-            // DECISÕES PÓS CONSULTA (4, 5 e 6)
-            // ==========================================
             else if (estadoAtual === 'regioes_pos_opcao' || estadoAtual === 'pagamento_pos_opcao' || estadoAtual === 'horario_pos_opcao') {
                 if (text === '1') {
                     userState[from] = 'chamado_nome'
@@ -441,9 +425,6 @@ O que deseja fazer agora?
                 }
             }
 
-            // ==========================================
-            // FLUXO OPÇÃO 1: SOLICITAÇÃO DE CHAMADO
-            // ==========================================
             else if (estadoAtual === 'chamado_nome') {
                 if (text === '9') {
                     userState[from] = 'inicio'
@@ -586,9 +567,6 @@ O que deseja fazer agora?
                 delete userData[from]
             }
 
-            // ==========================================
-            // FLUXO OPÇÃO 2: ORÇAMENTO AUTOMÁTICO POR CATEGORIA
-            // ==========================================
             else if (estadoAtual === 'orcamento_categoria') {
                 if (text === '9') {
                     userState[from] = 'inicio'
@@ -659,9 +637,6 @@ O que deseja fazer agora?
                 userState[from] = 'orcamento_pos_opcao'
             }
 
-            // ==========================================
-            // DECISÃO PÓS ORÇAMENTO
-            // ==========================================
             else if (estadoAtual === 'orcamento_pos_opcao') {
                 if (text === '1') {
                     userState[from] = 'chamado_nome'
