@@ -701,7 +701,7 @@ O que deseja fazer agora?
 
             if (statusCode !== DisconnectReason.loggedOut) {
                 console.log('🔄 Reconectando...')
-                setTimeout(() => ligarbot(), 3000)
+                setTimeout(() => ligarbot(), 1000)
             } else {
                 console.log('🚪 Deslogado. Apague a pasta sessao e pareie novamente.')
             }
