@@ -10,8 +10,8 @@ git add .
 git commit -m "Atualizando número de WhatsApp e arquivos"
 git push origin main --force || git push origin master --force
 
-echo "🤖 Iniciando o Servidor/Bot..."
-node server.js &
+echo "🤖 Iniciando o Bot (index.js)..."
+node index.js &
 
 sleep 3
 
