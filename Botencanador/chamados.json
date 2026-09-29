@@ -1,0 +1,45 @@
+{
+  "1340": {
+    "tipo": "servico",
+    "nome": "Lucas",
+    "telefone": "73988478170",
+    "endereco": "Rua 21 de abril",
+    "servico": "Vazamento em registro geral/pressão - R$ 150,00 a R$ 300,00",
+    "detalhes": "Registro do banheiro",
+    "status": "Pendente",
+    "dataCriacao": "2026-09-28T10:31:41.869Z"
+  },
+  "5371": {
+    "tipo": "servico",
+    "nome": "Lucas Emanuel Tavares dos Santos",
+    "telefone": "73988478170",
+    "endereco": "Rua 21 de abril",
+    "servico": "Termografia (Câmera térmica) - R$ 300,00 a R$ 600,00",
+    "detalhes": "Instalação de camara",
+    "dataCriacao": "2026-09-28T00:10:22.201Z"
+  },
+  "6422": {
+    "tipo": "atendimento_humano",
+    "nome": "Lucas Emanuel",
+    "telefone": "73988478170",
+    "duvida": "Encanador está demorando",
+    "dataCriacao": "2026-09-27T21:47:43.825Z"
+  },
+  "7914": {
+    "tipo": "servico",
+    "nome": "Lucas Emanuel Tavares dos Santos",
+    "telefone": "73988478170",
+    "endereco": "Rua 21 de abril",
+    "servico": "Limpeza/desentupimento caixa de gordura - R$ 250,00 a R$ 500,00",
+    "detalhes": "Caixa de gordura",
+    "dataCriacao": "2026-09-28T00:21:25.617Z"
+  },
+  "9235": {
+    "tipo": "atendimento_humano",
+    "nome": "Val",
+    "telefone": "73988800085",
+    "horario_preferencial": "Manhã (08:00 às 12:00)",
+    "duvida": "Quando o encanador vai retornar",
+    "dataCriacao": "2026-09-27T22:05:19.734Z"
+  }
+}
