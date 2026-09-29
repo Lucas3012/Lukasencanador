@@ -44,22 +44,6 @@ const userData = {}
 const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
 
 const SERVICOS = {
-    vazamentos: [
-        "Caça-vazamento oculto (Geofone)",
-        "Termografia (Câmera térmica)",
-        "Vazamento exposto (fácil acesso)",
-        "Vazamento embutido (parede/piso)",
-        "Vazamento em registro geral/pressão",
-        "Reparo em válvula Hydra / Docol",
-        "Vazamento acoplamento caixa acoplada",
-        "Vedação base vaso sanitário (anel)",
-        "Reparo sifão/engate flexível/niple",
-        "Vazamento na junta de esgoto/ralo",
-        "Vazamento caixa d'água/bóia mecânica",
-        "Infiltração junta de dilatação/calha",
-        "Vazamento prumada/coluna principal",
-        "Vazamento água quente (PPR/CPVC)"
-    ],
     desentupimento: [
         "Desentupimento de pia/lavatório",
         "Desentupimento de ralo/tanque",
@@ -88,7 +72,6 @@ const SERVICOS = {
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
-// Função corrigida para abrir a leitura do terminal sob demanda
 const question = (texto) => new Promise((resolve) => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
     rl.question(texto, (resposta) => {
@@ -196,14 +179,26 @@ async function ligarbot() {
                     return
                 }
 
+                if (text === '1') {
+                    // Categoria Vazamentos no Menu 3: orienta direto a abrir um chamado
+                    const msgVazamentoTabela = 
+`💧 *Atendimento para Vazamentos:*
+
+Para serviços de vazamento, realizamos uma avaliação no local com equipamentos apropriados (como Geofone/Termografia).
+
+O que deseja fazer agora?
+1️⃣ *Registrar Chamado Agora*
+0️⃣ *Voltar ao Menu Principal*`
+
+                    await escrever(msgVazamentoTabela)
+                    userState[from] = 'tabela_pos_opcao'
+                    return
+                }
+
                 let listaOpcoes = []
                 let nomeCategoria = ''
 
-                if (text === '1') {
-                    userData[from].categoria_chave = 'vazamentos'
-                    nomeCategoria = 'Vazamentos'
-                    listaOpcoes = SERVICOS.vazamentos
-                } else if (text === '2') {
+                if (text === '2') {
                     userData[from].categoria_chave = 'desentupimento'
                     nomeCategoria = 'Desentupimento'
                     listaOpcoes = SERVICOS.desentupimento
@@ -464,14 +459,19 @@ O que deseja fazer agora?
                     return
                 }
 
+                if (text === '1') {
+                    // Selecionou Vazamento no chamado: pula a lista de itens e vai direto para a pergunta de detalhes
+                    userData[from].categoria_nome = 'Vazamentos'
+                    userData[from].servico = 'Vazamento (Geral)'
+                    userState[from] = 'chamado_detalhes'
+                    await escrever('💧 *Serviço selecionado: Vazamento*\n\nPor favor, descreva em detalhes o problema (ex: local do vazamento, se está escorrendo água, se é visível ou embutido, etc.):' + rodapeNavegacao)
+                    return
+                }
+
                 let listaOpcoes = []
                 let nomeCategoria = ''
 
-                if (text === '1') {
-                    userData[from].categoria_chave = 'vazamentos'
-                    nomeCategoria = 'Vazamentos'
-                    listaOpcoes = SERVICOS.vazamentos
-                } else if (text === '2') {
+                if (text === '2') {
                     userData[from].categoria_chave = 'desentupimento'
                     nomeCategoria = 'Desentupimento'
                     listaOpcoes = SERVICOS.desentupimento
@@ -518,15 +518,9 @@ O que deseja fazer agora?
             }
             else if (estadoAtual === 'chamado_detalhes') {
                 if (text === '9') {
-                    userState[from] = 'chamado_item_servico'
-                    const catChave = userData[from].categoria_chave
-                    const listaOpcoes = SERVICOS[catChave]
-                    let msgItens = `🛠️ *Serviços de ${userData[from].categoria_nome}:*\nEscolha o item desejado digitando o número:\n\n`
-                    listaOpcoes.forEach((servico, index) => {
-                        msgItens += `${index + 1}️⃣ ${servico}\n`
-                    })
-                    msgItens += rodapeNavegacao
-                    await escrever(msgItens)
+                    userState[from] = 'chamado_categoria'
+                    const msgCategoria = `🛠️ *Selecione a Categoria do Serviço:*\n\n1️⃣ *Vazamentos*\n2️⃣ *Desentupimentos*\n3️⃣ *Reparo / Manutenção*` + rodapeNavegacao
+                    await escrever(msgCategoria)
                     return
                 }
 
@@ -574,14 +568,26 @@ O que deseja fazer agora?
                     return
                 }
 
+                if (text === '1') {
+                    // Categoria Vazamentos no Menu 2: vai direto para a orientação e permite abrir chamado
+                    const msgVazamentoOrcamento = 
+`💧 *Orçamento de Vazamento:*
+
+Devido à natureza dos vazamentos (visíveis ou ocultos), o orçamento exato é fornecido após a vistoria técnica no local.
+
+O que deseja fazer agora?
+1️⃣ *Registrar Chamado Agora*
+0️⃣ *Voltar ao Menu Principal*`
+
+                    await escrever(msgVazamentoOrcamento)
+                    userState[from] = 'orcamento_pos_opcao'
+                    return
+                }
+
                 let listaOpcoes = []
                 let nomeCategoria = ''
 
-                if (text === '1') {
-                    userData[from].categoria_chave = 'vazamentos'
-                    nomeCategoria = 'Vazamentos'
-                    listaOpcoes = SERVICOS.vazamentos
-                } else if (text === '2') {
+                if (text === '2') {
                     userData[from].categoria_chave = 'desentupimento'
                     nomeCategoria = 'Desentupimento'
                     listaOpcoes = SERVICOS.desentupimento
