@@ -5,13 +5,12 @@ const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
 
-// Configuração da API do Gemini
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6JZpdIHUjHmwU5XbZedY64Eh7s2CFQ8AzdkU1LtOM9kyA'
+// Insira a chave gerada no Google AI Studio (deve começar com AIzaSy...):
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'SUA_CHAVE_AQUI'
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
 let jaPareou = false
 
-// Arquivo local para persistência de dados
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
 
 function carregarChamados() {
@@ -69,19 +68,20 @@ async function responderComGemini(pergunta) {
             model: 'gemini-2.5-flash',
             contents: pergunta,
             config: {
-                systemInstruction: `Você é "Lukas Encanador", um encanador experiente e atencioso que atende as regiões de Itabuna, Ilhéus e Itapé.
+                systemInstruction: `Você é o "Lukas Encanador", um encanador experiente, extremamente educado, bem-humorado e confiável que atende em Itabuna, Ilhéus e Itapé.
 
-Instruções de Comunicação:
-1. Responda às mensagens dos clientes de forma natural, humana, amigável e profissional.
-2. Tire dúvidas sobre hidráulica, vazamentos, entupimentos e manutenção com clareza.
-3. Se o cliente apenas der um "olá", tirar uma dúvida ou conversar, responda normalmente como uma pessoa real sem forçar menus.
-4. Caso o cliente diga que deseja agendar, abrir um chamado, ver os preços ou acessar o atendimento formal, mencione que ele pode digitar "Menu" ou pedir "Atendimento" a qualquer momento para ver a lista completa de serviços.`
+Tom de voz e Personalidade:
+1. Responda como um profissional humano de verdade: caloroso, prestativo e direto ao ponto. Use expressões amigáveis (ex: "Opa, tudo joia?", "Tranquilo!", "Com certeza, posso te ajudar com isso!").
+2. Demonstre conhecimento prático sobre hidráulica, vazamentos, pias, vasos sanitários, caixas d'água e tubulações.
+3. Use emojis do universo da construção e reparo de forma natural (🔧, 🚰, 💧, 👍, 🛠️).
+4. Se o cliente apenas saudar ou fazer uma pergunta rápida, converse de forma natural. Se ele demonstrar que quer agendar ou contratar, lembre-o com simpatia: "Se quiser ver nossa tabela de serviços ou abrir um chamado direto, é só digitar *Menu*!".
+5. Mantenha as respostas relativamente curtas e fáceis de ler no WhatsApp.`
             }
         });
         return response.text;
     } catch (err) {
-        console.error('Erro na chamada do Gemini:', err);
-        return null;
+        console.error('⚠️ Erro na chamada do Gemini:', err.message);
+        return "Opa, tudo bem? 🔧 Sou o Lukas Encanador! Tive um pequeno probleminha aqui no sinal, mas me diz: como posso te ajudar com a parte hidráulica hoje? (Se quiser ver nossos serviços, basta digitar *Menu*).";
     }
 }
 
@@ -99,7 +99,6 @@ async function ligarbot() {
 
     client.ev.on('creds.update', saveCreds)
 
-    // Função para enviar Lista Interativa (List Message)
     async function enviarLista(from, title, text, buttonText, sections) {
         const msg = generateWAMessageFromContent(from, {
             viewOnceMessage: {
@@ -125,7 +124,6 @@ async function ligarbot() {
         await client.relayMessage(from, msg.message, { messageId: msg.key.id })
     }
 
-    // Função para enviar Botões Interativos (Quick Reply Buttons)
     async function enviarBotoes(from, text, buttons) {
         const formatButtons = buttons.map(b => ({
             name: "quick_reply",
@@ -155,24 +153,24 @@ async function ligarbot() {
             {
                 title: "Atendimento & Serviços",
                 rows: [
-                    { title: "Solicitar Serviço / Agendar", description: "Abra um novo chamado de atendimento", id: "op_1" },
-                    { title: "Orçamento Automático", description: "Consulte estimativas de preços", id: "op_2" },
-                    { title: "Tabela por Categoria", description: "Veja todos os nossos serviços", id: "op_3" }
+                    { title: "Solicitar Serviço / Agendar", description: "Abra um novo chamado com a gente", id: "op_1" },
+                    { title: "Orçamento Automático", description: "Consulte estimativas rapidamente", id: "op_2" },
+                    { title: "Tabela por Categoria", description: "Veja nossos serviços disponíveis", id: "op_3" }
                 ]
             },
             {
                 title: "Informações Gerais",
                 rows: [
-                    { title: "Regiões & Taxa de Visita", description: "Cidades atendidas e custos", id: "op_4" },
+                    { title: "Regiões & Taxa de Visita", description: "Cidades atendidas e valores", id: "op_4" },
                     { title: "Formas de Pagamento", description: "Pix, cartões e dinheiro", id: "op_5" },
-                    { title: "Horário de Funcionamento", description: "Nossa disponibilidade", id: "op_6" }
+                    { title: "Horário de Funcionamento", description: "Veja quando estamos disponíveis", id: "op_6" }
                 ]
             },
             {
                 title: "Suporte",
                 rows: [
-                    { title: "Falar com Atendente Humano", description: "Conversar com a equipe", id: "op_7" },
-                    { title: "Status do Atendimento", description: "Consultar protocolo ou reclamação", id: "op_8" }
+                    { title: "Falar com Atendente Humano", description: "Conversar com a nossa equipe", id: "op_7" },
+                    { title: "Status do Atendimento", description: "Consultar protocolo ou suporte", id: "op_8" }
                 ]
             }
         ]
@@ -180,7 +178,7 @@ async function ligarbot() {
         await enviarLista(
             from,
             "🔧 Lukas Encanador",
-            "Aqui está o menu com nossos serviços e opções de atendimento. Como posso te ajudar?",
+            "Opa! Aqui está o nosso menu completo de serviços e opções. Como posso te ajudar hoje?",
             "Ver Serviços",
             secoes
         )
@@ -197,7 +195,6 @@ async function ligarbot() {
 
             await client.readMessages([{ remoteJid: from, id: info.key.id, participant: info.key.participant }])
 
-            // Captura o texto ou a resposta de botões/listas interativas
             let text = ""
             if (info.message.conversation) {
                 text = info.message.conversation
@@ -236,28 +233,24 @@ async function ligarbot() {
                 return
             }
 
-            // Expressões que disparam o envio do Menu com a Lista de Serviços
             const pedeAtendimentoOuMenu = (
                 textNorm === 'menu' || 
                 textNorm === '0' || 
-                textNorm.includes('atendimento') || 
-                textNorm.includes('servicos') || 
-                textNorm.includes('servico') || 
-                textNorm.includes('lista') || 
-                textNorm.includes('agendar') || 
-                textNorm.includes('orcamento')
+                textNorm === 'atendimento' || 
+                textNorm.includes('ver servicos') || 
+                textNorm.includes('lista de servicos')
             )
 
             if (estadoAtual === 'inicio') {
                 if (text === '1' || text === 'op_1' || textNorm.includes('solicitar')) {
                     userState[from] = 'chamado_nome'
-                    await escrever('📋 *Abertura de Chamado - Lukas Encanador*\n\nPara iniciarmos o seu agendamento, por favor digite o seu *Nome completo*:' + rodapeNavegacao)
+                    await escrever('📋 *Abertura de Chamado - Lukas Encanador*\n\nExcelente! Para organizar o seu agendamento, pode me dizer o seu *Nome completo*?' + rodapeNavegacao)
                 } else if (text === '2' || text === 'op_2') {
                     userState[from] = 'orcamento_categoria'
                     await enviarLista(
                         from,
                         "📊 Orçamento Automático",
-                        "Qual categoria de serviço você precisa para o seu orçamento?",
+                        "Perfeito! De qual dessas categorias é o serviço que você precisa?",
                         "Selecionar Categoria",
                         [{
                             title: "Categorias",
@@ -273,7 +266,7 @@ async function ligarbot() {
                     await enviarLista(
                         from,
                         "🛠️ Tabela de Serviços",
-                        "Escolha a categoria que deseja para visualizar nossos serviços:",
+                        "Escolha a categoria abaixo para dar uma olhada na nossa lista de serviços:",
                         "Ver Categorias",
                         [{
                             title: "Categorias",
@@ -285,21 +278,21 @@ async function ligarbot() {
                         }]
                     )
                 } else if (text === '4' || text === 'op_4') {
-                    const regioes = `📍 *Regiões de Atendimento & Visita (Lukas Encanador):*\n\n🏠 Atendemos em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (Valor abatido no total caso o serviço seja aprovado!).`
+                    const regioes = `📍 *Regiões de Atendimento & Visita (Lukas Encanador):*\n\n🏠 Atendemos com agilidade em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (E o melhor: esse valor é abatido no total se você fechar o serviço com a gente!).`
                     await escrever(regioes)
                     await enviarBotoes(from, "Como deseja prosseguir?", [
                         { displayText: "📋 Registrar Chamado", id: "op_1" },
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
                 } else if (text === '5' || text === 'op_5') {
-                    const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro em espécie`
+                    const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\nFacilitamos para você! Aceitamos:\n✅ Pix\n✅ Cartão de Crédito (em até 12x)\n✅ Cartão de Débito\n✅ Dinheiro em espécie`
                     await escrever(pagamentos)
                     await enviarBotoes(from, "Como deseja prosseguir?", [
                         { displayText: "📋 Registrar Chamado", id: "op_1" },
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
                 } else if (text === '6' || text === 'op_6') {
-                    const horarios = `⏰ *Horário de Atendimento:*\n\nAtendemos de Segunda a Sexta-feira, das 08h às 18h.`
+                    const horarios = `⏰ *Horário de Atendimento:*\n\nNossa equipe está de prontidão de Segunda a Sexta-feira, das 08h às 18h.`
                     await escrever(horarios)
                     await enviarBotoes(from, "Como deseja prosseguir?", [
                         { displayText: "📋 Registrar Chamado", id: "op_1" },
@@ -307,19 +300,15 @@ async function ligarbot() {
                     ])
                 } else if (text === '7' || text === 'op_7') {
                     userState[from] = 'atendente_nome'
-                    await escrever('📞 *Atendimento Humano*\n\nPara transferir para nossa equipe, por favor informe seu *Nome completo*:' + rodapeNavegacao)
+                    await escrever('📞 *Atendimento Humano*\n\nCom certeza! Para eu te encaminhar para a equipe agora mesmo, informe seu *Nome completo*:' + rodapeNavegacao)
                 } else if (text === '8' || text === 'op_8') {
                     userState[from] = 'reclamacao_nome'
-                    await escrever('🔍 *Consulta de Status / Reclamação*\n\nPor favor, informe o seu *Nome completo*:' + rodapeNavegacao)
+                    await escrever('🔍 *Consulta de Status / Suporte*\n\nSem problemas! Por favor, digite seu *Nome completo* para localizarmos seu histórico:' + rodapeNavegacao)
                 } else if (pedeAtendimentoOuMenu) {
-                    // Quando o cliente solicita atendimento ou o menu diretamente
                     await mostrarMenuPrincipal(from)
                 } else {
-                    // Resposta fluida e conversa normal com a IA Lukas Encanador (Gemini)
                     const respostaAI = await responderComGemini(text)
-                    if (respostaAI) {
-                        await escrever(respostaAI)
-                    }
+                    await escrever(respostaAI)
                 }
             }
 
@@ -327,15 +316,15 @@ async function ligarbot() {
                 if (text === 'cat_vazamentos' || text === 'tab_vazamentos' || textNorm.includes('vazamento')) {
                     userState[from] = 'descrever_detalhes'
                     userData[from].categoria = "Vazamento"
-                    await escrever('💧 *Lukas Encanador - Detalhamento do Vazamento*\n\nPor favor, **descreva o tipo de vazamento** (ex: onde está localizado, se é em cano, parede, torneira ou caixa d\'água):' + rodapeNavegacao)
+                    await escrever('💧 *Detalhamento de Vazamento*\n\nCerto! Me conta brevemente onde está o vazamento (ex: cano na parede, torneira pingando, caixa d\'água, infiltração...):' + rodapeNavegacao)
                 } else if (text === 'cat_desentupimento' || text === 'tab_desentupimento' || textNorm.includes('desentupimento')) {
                     userState[from] = 'descrever_detalhes'
                     userData[from].categoria = "Desentupimento"
-                    await escrever('🚽 *Lukas Encanador - Detalhamento do Desentupimento*\n\nPor favor, **descreva o tipo de entupimento** (ex: se é na pia, vaso sanitário, ralo ou caixa de esgoto):' + rodapeNavegacao)
+                    await escrever('🚽 *Detalhamento de Desentupimento*\n\nPerfeito! Pode me explicar o que está entupido? (ex: pia da cozinha, vaso sanitário, ralo do banheiro, caixa de esgoto...):' + rodapeNavegacao)
                 } else if (text === 'cat_reparos' || text === 'tab_reparos' || textNorm.includes('reparo')) {
                     userState[from] = 'descrever_detalhes'
                     userData[from].categoria = "Reparo / Manutenção"
-                    await escrever('🛠️ *Lukas Encanador - Detalhamento do Reparo*\n\nPor favor, **descreva qual serviço de reparo ou manutenção você precisa** (ex: troca de torneira, caixa acoplada, válvula hydra):' + rodapeNavegacao)
+                    await escrever('🛠️ *Detalhamento do Reparo*\n\nShow! Qual reparo ou troca você precisa realizar? (ex: trocar reparo de válvula Hydra, instalar torneira, trocar caixa acoplada...):' + rodapeNavegacao)
                 } else {
                     await escrever('Opção não reconhecida.')
                 }
@@ -343,8 +332,8 @@ async function ligarbot() {
 
             else if (estadoAtual === 'descrever_detalhes') {
                 userData[from].detalhes = text
-                await escrever(`✅ Perfeito! Sou o **Lukas Encanador** e registrei os detalhes do seu serviço de *${userData[from].categoria}*:\n\n💬 "${text}"\n\nDeseja registrar o chamado com esses dados agora?`)
-                await enviarBotoes(from, "Escolha uma opção:", [
+                await escrever(`✅ Entendido! Anotei aqui os detalhes do seu serviço de *${userData[from].categoria}*:\n\n💬 "${text}"\n\nDeseja abrir o chamado de atendimento agora com esses dados?`)
+                await enviarBotoes(from, "Como deseja prosseguir?", [
                     { displayText: "📋 Registrar Chamado", id: "op_1" },
                     { displayText: "🏠 Menu Principal", id: "menu" }
                 ])
@@ -355,17 +344,17 @@ async function ligarbot() {
                 if (text === '0' || textNorm === 'voltar') { userState[from] = 'inicio'; await mostrarMenuPrincipal(from); return; }
                 userData[from].nome = text
                 userState[from] = 'chamado_telefone'
-                await escrever(`Prazer, *${text}*! Sou o **Lukas Encanador**. 👋\n\nAgora, digite o seu *Telefone para Contato/WhatsApp* (com DDD):` + rodapeNavegacao)
+                await escrever(`Prazer em te conhecer, *${text}*! 👋\n\nQual é o seu *Telefone/WhatsApp* para contato (com DDD)?` + rodapeNavegacao)
             }
             else if (estadoAtual === 'chamado_telefone') {
                 userData[from].telefone = text
                 userState[from] = 'chamado_endereco'
-                await escrever('📍 Perfeito! Agora, digite o seu *Endereço completo* (Rua, Número, Bairro):' + rodapeNavegacao)
+                await escrever('📍 Perfeito! Agora me informe o *Endereço completo* onde será o serviço (Rua, Número e Bairro):' + rodapeNavegacao)
             }
             else if (estadoAtual === 'chamado_endereco') {
                 userData[from].endereco = text
                 userState[from] = 'chamado_detalhes'
-                await escrever('📝 Qual é o serviço que você deseja agendar? Descreva brevemente o problema:' + rodapeNavegacao)
+                await escrever('📝 Para finalizar: descreva brevemente o problema ou o serviço que precisa ser feito:' + rodapeNavegacao)
             }
             else if (estadoAtual === 'chamado_detalhes') {
                 userData[from].detalhes = text
@@ -377,9 +366,9 @@ async function ligarbot() {
                     endereco: userData[from].endereco,
                     detalhes: userData[from].detalhes
                 })
-                const resumoChamado = `🚨 *NOVO CHAMADO - LUKAS ENCANADOR*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${userData[from].telefone}\n🏠 *Endereço:* ${userData[from].endereco}\n📝 *Serviço Solicitado:* ${userData[from].detalhes}`
+                const resumoChamado = `🚨 *NOVO CHAMADO REGISTRADO - LUKAS ENCANADOR*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Cliente:* ${userData[from].nome}\n📞 *Contato:* ${userData[from].telefone}\n🏠 *Endereço:* ${userData[from].endereco}\n📝 *Serviço:* ${userData[from].detalhes}`
                 await escrever(resumoChamado)
-                await escrever(`✅ *Chamado #${protocolo} registrado com sucesso!* Sou o **Lukas Encanador** e nossa equipe entrará em contato em instantes.`)
+                await escrever(`✅ *Chamado #${protocolo} gerado com sucesso!* Já registrei tudo aqui e nossa equipe vai entrar em contato com você o mais rápido possível! 🛠️👍`)
                 delete userState[from]
                 delete userData[from]
             }
@@ -402,7 +391,7 @@ async function ligarbot() {
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado com conversa natural da IA e Menu sob demanda!')
+            console.log('✅ Bot Lukas Encanador com Personalidade Conectado!')
         }
         
         if (connection === 'close') {
