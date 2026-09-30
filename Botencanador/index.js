@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('@itsliaaa/baileys')
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, Browsers, DisconnectReason, generateWAMessageFromContent, proto } = require('@itsliaaa/baileys')
 const { GoogleGenAI } = require('@google/genai')
 const pino = require('pino')
 const readline = require('readline')
@@ -95,24 +95,91 @@ async function ligarbot() {
 
     client.ev.on('creds.update', saveCreds)
 
-    // Função para enviar Menu como Enquete (Botão de Escolha)
-    async function enviarMenuBotoes(from, info) {
-        await client.sendMessage(from, {
-            poll: {
-                name: "👋 Olá! Bem-vindo ao atendimento do Encanador.\nComo posso te ajudar hoje? Escolha uma opção abaixo:",
-                values: [
-                    "1️⃣ Solicitar Serviço / Agendar",
-                    "2️⃣ Orçamento Automático",
-                    "3️⃣ Tabela de Serviços por Categoria",
-                    "4️⃣ Regiões de Atendimento & Taxa",
-                    "5️⃣ Formas de Pagamento",
-                    "6️⃣ Horário de Funcionamento",
-                    "7️⃣ Falar com Atendente",
-                    "8️⃣ Status do Atendimento / Reclamação"
-                ],
-                selectableCount: 1
+    // Função para enviar Lista Interativa (List Message)
+    async function enviarLista(from, title, text, buttonText, sections) {
+        const msg = generateWAMessageFromContent(from, {
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: proto.Message.InteractiveMessage.create({
+                        body: proto.Message.InteractiveMessage.Body.create({ text: text }),
+                        header: proto.Message.InteractiveMessage.Header.create({ title: title, hasMediaAttachment: false }),
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                            buttons: [
+                                {
+                                    name: "single_select",
+                                    buttonParamsJson: JSON.stringify({
+                                        title: buttonText,
+                                        sections: sections
+                                    })
+                                }
+                            ]
+                        })
+                    })
+                }
             }
-        }, { quoted: info })
+        }, {})
+        await client.relayMessage(from, msg.message, { messageId: msg.key.id })
+    }
+
+    // Função para enviar Botões Interativos (Quick Reply Buttons)
+    async function enviarBotoes(from, text, buttons) {
+        const formatButtons = buttons.map(b => ({
+            name: "quick_reply",
+            buttonParamsJson: JSON.stringify({
+                display_text: b.displayText,
+                id: b.id
+            })
+        }))
+
+        const msg = generateWAMessageFromContent(from, {
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: proto.Message.InteractiveMessage.create({
+                        body: proto.Message.InteractiveMessage.Body.create({ text: text }),
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                            buttons: formatButtons
+                        })
+                    })
+                }
+            }
+        }, {})
+        await client.relayMessage(from, msg.message, { messageId: msg.key.id })
+    }
+
+    async function mostrarMenuPrincipal(from) {
+        const secoes = [
+            {
+                title: "Atendimento & Serviços",
+                rows: [
+                    { title: "Solicitar Serviço / Agendar", description: "Abra um novo chamado de atendimento", id: "op_1" },
+                    { title: "Orçamento Automático", description: "Consulte estimativas de preços", id: "op_2" },
+                    { title: "Tabela por Categoria", description: "Veja todos os nossos serviços", id: "op_3" }
+                ]
+            },
+            {
+                title: "Informações Geral",
+                rows: [
+                    { title: "Regiões & Taxa de Visita", description: "Cidades atendidas e custos", id: "op_4" },
+                    { title: "Formas de Pagamento", description: "Pix, cartões e dinheiro", id: "op_5" },
+                    { title: "Horário de Funcionamento", description: "Nossa disponibilidade", id: "op_6" }
+                ]
+            },
+            {
+                title: "Suporte",
+                rows: [
+                    { title: "Falar com Atendente", description: "Conversar com equipe humana", id: "op_7" },
+                    { title: "Status do Atendimento", description: "Consultar protocolo ou reclamação", id: "op_8" }
+                ]
+            }
+        ]
+
+        await enviarLista(
+            from,
+            "👋 Atendimento do Encanador",
+            "Seja bem-vindo! Clique no botão abaixo para abrir a lista de opções disponíveis:",
+            "Ver Opções",
+            secoes
+        )
     }
 
     client.ev.on('messages.upsert', async ({ messages }) => {
@@ -126,18 +193,19 @@ async function ligarbot() {
 
             await client.readMessages([{ remoteJid: from, id: info.key.id, participant: info.key.participant }])
 
-            // Trata mensagens de texto comuns ou votos em enquetes/botões
+            // Captura o texto ou a resposta de botões/listas interativas
             let text = ""
             if (info.message.conversation) {
                 text = info.message.conversation
             } else if (info.message.extendedTextMessage) {
                 text = info.message.extendedTextMessage.text
-            } else if (info.message.pollCreationMessage) {
-                return
-            } else if (info.message.pollUpdateMessage) {
-                // Captura clique no botão da enquete (se houver)
-                const vote = info.message.pollUpdateMessage
-                if (vote) text = "menu"
+            } else if (info.message.interactiveResponseMessage) {
+                const params = JSON.parse(info.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson)
+                text = params.id || params.text
+            } else if (info.message.buttonsResponseMessage) {
+                text = info.message.buttonsResponseMessage.selectedButtonId
+            } else if (info.message.listResponseMessage) {
+                text = info.message.listResponseMessage.singleSelectReply.selectedRowId
             }
 
             const textNorm = normalizar(text)
@@ -155,53 +223,75 @@ async function ligarbot() {
             if (!userData[from]) userData[from] = {}
 
             const estadoAtual = userState[from]
-            const rodapeNavegacao = `\n\n─────────────────\n↩️ Envie *0* para voltar ao Menu Principal.`
+            const rodapeNavegacao = `\n\n─────────────────\n↩️ Digite *0* a qualquer momento para voltar ao Menu.`
 
             if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm === 'inicio') && estadoAtual !== 'inicio') {
                 userState[from] = 'inicio'
                 delete userData[from]
-                await enviarMenuBotoes(from, info)
+                await mostrarMenuPrincipal(from)
                 return
             }
 
             if (estadoAtual === 'inicio') {
-                if (text === '1' || textNorm.includes('1') || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
+                if (text === '1' || text === 'op_1' || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
                     userState[from] = 'chamado_nome'
                     await escrever('📋 *Abertura de Chamado*\n\nPara iniciarmos, por favor digite o seu *Nome completo*:' + rodapeNavegacao)
-                } else if (text === '2' || textNorm.includes('2') || textNorm.includes('orcamento')) {
+                } else if (text === '2' || text === 'op_2' || textNorm.includes('orcamento')) {
                     userState[from] = 'orcamento_categoria'
-                    await client.sendMessage(from, {
-                        poll: {
-                            name: "📊 *Orçamento Automático*\nSelecione a categoria do serviço:",
-                            values: ["1️⃣ Vazamentos", "2️⃣ Desentupimentos", "3️⃣ Reparo / Manutenção"],
-                            selectableCount: 1
-                        }
-                    }, { quoted: info })
-                } else if (text === '3' || textNorm.includes('3') || textNorm.includes('tabela')) {
+                    await enviarLista(
+                        from,
+                        "📊 Orçamento Automático",
+                        "Selecione qual categoria de serviço você deseja consultar:",
+                        "Selecionar Categoria",
+                        [{
+                            title: "Categorias",
+                            rows: [
+                                { title: "Vazamentos", description: "Caça vazamentos e infiltrações", id: "cat_vazamentos" },
+                                { title: "Desentupimentos", description: "Pias, ralos e esgoto", id: "cat_desentupimento" },
+                                { title: "Reparo / Manutenção", description: "Torneiras, caixas e válvulas", id: "cat_reparos" }
+                            ]
+                        }]
+                    )
+                } else if (text === '3' || text === 'op_3' || textNorm.includes('tabela')) {
                     userState[from] = 'tabela_categoria'
-                    await client.sendMessage(from, {
-                        poll: {
-                            name: "🛠️ *Lista de Serviços por Categoria*\nEscolha qual categoria deseja consultar:",
-                            values: ["1️⃣ Vazamentos", "2️⃣ Desentupimentos", "3️⃣ Reparo / Manutenção"],
-                            selectableCount: 1
-                        }
-                    }, { quoted: info })
-                } else if (text === '4' || textNorm.includes('4') || textNorm.includes('regiao') || textNorm.includes('visita')) {
-                    const regioes = `📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (Abatido no total caso o serviço seja aprovado!).`
+                    await enviarLista(
+                        from,
+                        "🛠️ Tabela de Serviços",
+                        "Escolha a categoria para visualizar a lista completa:",
+                        "Ver Categorias",
+                        [{
+                            title: "Categorias",
+                            rows: [
+                                { title: "Desentupimentos", description: "Lista completa de serviços", id: "tab_desentupimento" },
+                                { title: "Reparos e Trocas", description: "Lista completa de serviços", id: "tab_reparos" }
+                            ]
+                        }]
+                    )
+                } else if (text === '4' || text === 'op_4' || textNorm.includes('regiao')) {
+                    const regioes = `📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos exclusivamente em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (Valor abatido no total caso o serviço seja aprovado!).`
                     await escrever(regioes)
-                    await enviarMenuBotoes(from, info)
-                } else if (text === '5' || textNorm.includes('5') || textNorm.includes('pagamento')) {
-                    const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro`
+                    await enviarBotoes(from, "Como deseja prosseguir?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+                } else if (text === '5' || text === 'op_5' || textNorm.includes('pagamento')) {
+                    const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro em espécie`
                     await escrever(pagamentos)
-                    await enviarMenuBotoes(from, info)
-                } else if (text === '6' || textNorm.includes('6') || textNorm.includes('horario')) {
-                    const horarios = `⏰ *Horário de Atendimento:*\n\nSegunda a Sexta-feira, das 08h às 18h.`
+                    await enviarBotoes(from, "Como deseja prosseguir?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+                } else if (text === '6' || text === 'op_6' || textNorm.includes('horario')) {
+                    const horarios = `⏰ *Horário de Atendimento:*\n\nAtendemos de Segunda a Sexta-feira, das 08h às 18h.`
                     await escrever(horarios)
-                    await enviarMenuBotoes(from, info)
-                } else if (text === '7' || textNorm.includes('7') || textNorm.includes('atendente')) {
+                    await enviarBotoes(from, "Como deseja prosseguir?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+                } else if (text === '7' || text === 'op_7' || textNorm.includes('atendente')) {
                     userState[from] = 'atendente_nome'
-                    await escrever('📞 *Atendimento Humano*\n\nPara encaminharmos você a um especialista, digite seu *Nome completo*:' + rodapeNavegacao)
-                } else if (text === '8' || textNorm.includes('8') || textNorm.includes('status') || textNorm.includes('reclamacao')) {
+                    await escrever('📞 *Atendimento Humano*\n\nPara encaminharmos você a um especialista, por favor digite seu *Nome completo*:' + rodapeNavegacao)
+                } else if (text === '8' || text === 'op_8' || textNorm.includes('status') || textNorm.includes('reclamacao')) {
                     userState[from] = 'reclamacao_nome'
                     await escrever('🔍 *Consulta de Status / Reclamação*\n\nPor favor, informe o seu *Nome completo*:' + rodapeNavegacao)
                 } else {
@@ -209,12 +299,12 @@ async function ligarbot() {
                     if (respostaAI) {
                         await escrever(respostaAI)
                     }
-                    await enviarMenuBotoes(from, info)
+                    await mostrarMenuPrincipal(from)
                 }
             }
 
             else if (estadoAtual === 'chamado_nome') {
-                if (text === '0' || textNorm === 'voltar') { userState[from] = 'inicio'; await enviarMenuBotoes(from, info); return; }
+                if (text === '0' || textNorm === 'voltar') { userState[from] = 'inicio'; await mostrarMenuPrincipal(from); return; }
                 userData[from].nome = text
                 userState[from] = 'chamado_telefone'
                 await escrever(`Prazer, *${text}*! 👋\n\nAgora, digite o seu *Telefone para Contato/WhatsApp* (com DDD):` + rodapeNavegacao)
@@ -264,7 +354,7 @@ async function ligarbot() {
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado com sucesso com suporte a Botoes/Enquetes!')
+            console.log('✅ Bot conectado com sucesso com suporte a Listas e Botoes Interativos!')
         }
         
         if (connection === 'close') {
