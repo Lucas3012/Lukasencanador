@@ -6,7 +6,7 @@
     "servico": "Vazamento em registro geral/pressão - R$ 150,00 a R$ 300,00",
     "mensagem": "[Protocolo #1340] Endereço: Rua 21 de abril | Detalhes: Registro do banheiro",
     "origem": "WhatsApp Bot (Opção 1)",
-    "status": "Pendente",
+    "status": "Concluído",
     "data": "2026-09-28T10:31:41.874Z"
   },
   {
@@ -17,6 +17,6 @@
     "mensagem": "[Protocolo #7914] Endereço: Rua 21 de abril | Detalhes: Caixa de gordura",
     "origem": "WhatsApp Bot (Opção 1)",
     "data": "2026-09-28T00:21:25.620Z",
-    "status": "Em Andamento"
+    "status": "Concluído"
   }
 ]

@@ -5,9 +5,9 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = 'minha_chave_secreta_serveo';
+const SECRET_KEY = process.env.SECRET_KEY || 'minha_chave_secreta_local';
 
-// Permitir requisições do Serveo / CORS
+// Middlewares CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -17,7 +17,12 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Servir arquivos estáticos do site
+app.use(express.static(__dirname));
+if (fs.existsSync(path.join(__dirname, 'public'))) {
+  app.use(express.static(path.join(__dirname, 'public')));
+}
 
 const readJSON = (filePath) => {
   if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, '[]');
@@ -44,7 +49,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Rota de Login Unificada
+// Rotas da API
 app.post('/api/admin/login', (req, res) => {
   const usuarioInput = req.body.usuario || req.body.username;
   const senhaInput = req.body.senha || req.body.password;
@@ -56,7 +61,6 @@ app.post('/api/admin/login', (req, res) => {
     return res.status(401).json({ sucesso: false, success: false, mensagem: 'Usuário não encontrado' });
   }
 
-  // Compara texto direto ou hash
   const senhaValida = (admin.password === senhaInput);
 
   if (senhaValida) {
@@ -67,7 +71,6 @@ app.post('/api/admin/login', (req, res) => {
   res.status(401).json({ sucesso: false, success: false, mensagem: 'Senha incorreta' });
 });
 
-// Pedidos
 app.get('/api/admin/pedidos', authenticateToken, (req, res) => {
   const pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
   res.json(pedidos);
@@ -109,4 +112,18 @@ app.patch('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
   res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado' });
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`Servidor a rodar na porta ${PORT}`));
+// Inicialização do servidor + Execução do Bot
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🌐 Servidor API e Web a rodar na porta ${PORT}`);
+  
+  try {
+    const botPath = fs.existsSync(path.join(__dirname, 'Botencanador', 'index.js'))
+      ? './Botencanador/index.js'
+      : './index.js';
+    
+    require(botPath);
+    console.log('🤖 Bot do WhatsApp inicializado junto com o servidor!');
+  } catch (err) {
+    console.error('❌ Erro ao inicializar o Bot do WhatsApp:', err.message);
+  }
+});

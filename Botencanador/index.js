@@ -43,7 +43,6 @@ const userData = {}
 
 const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
 
-// Função utilitária para normalizar texto (remove acentos e deixa minúsculo)
 function normalizar(texto) {
     return texto ? texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : ""
 }
@@ -78,6 +77,10 @@ const SERVICOS = {
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
 const question = (texto) => new Promise((resolve) => {
+    if (!process.stdin.isTTY) {
+        console.log('⚠️ Ambiente sem terminal interativo. Aguardando conexão por sessão salva.');
+        return resolve('');
+    }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
     rl.question(texto, (resposta) => {
         rl.close()
@@ -135,7 +138,6 @@ async function ligarbot() {
             const estadoAtual = userState[from]
             const rodapeNavegacao = `\n\n─────────────────\n↩️ *9* - Voltar à Pergunta Anterior\n🏠 *0* - Voltar ao Menu Principal`
 
-            // Comando global para voltar ao menu principal
             if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm === 'inicio') && estadoAtual !== 'inicio' && estadoAtual !== 'orcamento_pos_opcao' && estadoAtual !== 'tabela_pos_opcao' && estadoAtual !== 'regioes_pos_opcao' && estadoAtual !== 'pagamento_pos_opcao' && estadoAtual !== 'horario_pos_opcao') {
                 userState[from] = 'inicio'
                 delete userData[from]
@@ -238,7 +240,6 @@ O que deseja fazer agora?
                 const listaOpcoes = SERVICOS[catChave]
                 let indiceEscolhido = parseInt(text) - 1
 
-                // Busca pelo nome do serviço se o usuário escreveu o texto
                 if (isNaN(indiceEscolhido)) {
                     indiceEscolhido = listaOpcoes.findIndex(item => normalizar(item).includes(textNorm))
                 }
@@ -531,7 +532,7 @@ O que deseja fazer agora?
             else if (estadoAtual === 'chamado_detalhes') {
                 if (text === '9' || textNorm === 'voltar') {
                     userState[from] = 'chamado_categoria'
-                    const msgCategoria = `🛠️ *Selecione a Categoria do Serviço:*\n\n1️⃣ *Vazamentos*\n2️⃣ *Desentupimentos*\n3️⃣ *Reparo / Manutenção*` + rodapeNavegacao
+                    const msgCategoria = `🛠️️ *Selecione a Categoria do Serviço:*\n\n1️⃣ *Vazamentos*\n2️⃣ *Desentupimentos*\n3️⃣ *Reparo / Manutenção*` + rodapeNavegacao
                     await escrever(msgCategoria)
                     return
                 }
