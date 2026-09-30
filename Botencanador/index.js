@@ -4,9 +4,7 @@ const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
 
-// Código do convite extraído do link: https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n
 const CODIGO_CONVITE_GRUPO = 'EwUIug1DbI3IWZGkpbrJ8n'
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6KHbHV85YPLeqj5QUDwOOOH4VVn2WqxSVM445kR_m9rEg'
 
 let idGrupoNotificacao = null
 let jaPareou = false
@@ -45,7 +43,7 @@ const userData = {}
 const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
 
 function normalizar(texto) {
-    return texto ? texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : ""
+    return texto ? texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "").trim() : ""
 }
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
@@ -61,39 +59,6 @@ const question = (texto) => new Promise((resolve) => {
         resolve(resposta)
     })
 })
-
-async function responderComGemini(pergunta) {
-    try {
-        const systemInstruction = `Você é o "Lukas Encanador", um mestre encanador altamente capacitado, simpático e atencioso que presta serviços em Itabuna, Ilhéus e Itapé.
-
-Suas diretrizes:
-1. RESPONDA A TUDO: Converse livremente sobre qualquer assunto de forma profissional e amigável.
-2. DÚVIDAS TÉCNICAS: Explique o problema e ofereça seus serviços no local.
-3. LEMBRETE: Diga que para ver os serviços ou agendar, basta digitar *Menu*.`
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`
-        
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                system_instruction: { parts: [{ text: systemInstruction }] },
-                contents: [{ parts: [{ text: pergunta }] }]
-            })
-        })
-
-        const data = await response.json()
-
-        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-            return data.candidates[0].content.parts[0].text
-        }
-
-        return "Opa, tudo joia? Sou o Lukas Encanador! 🔧 Como posso te ajudar hoje? Digite *Menu* para ver nossos serviços!"
-    } catch (err) {
-        console.error('⚠️ Erro de conexão:', err.message)
-        return "Opa! Sou o Lukas Encanador. Digite *Menu* para ver nossas opções de serviços!"
-    }
-}
 
 async function ligarbot() {
     const { state, saveCreds } = await useMultiFileAuthState('./sessao')
@@ -122,8 +87,8 @@ async function ligarbot() {
         }
     }
 
-    async function mostrarMenuTexto(from) {
-        const menuTexto = `🔧 *LUKAS ENCANADOR - SERVIÇOS HIDRÁULICOS* 🚰\n\nComo posso te ajudar hoje? Digite o *número* da opção desejada:\n\n1️⃣ *Solicitar Serviço / Agendar Visita*\n2️⃣ *Orçamento Automático*\n3️⃣ *Tabela de Serviços por Categoria*\n4️⃣ *Regiões Atendidas & Taxa de Visita*\n5️⃣ *Formas de Pagamento*\n6️⃣ *Horário de Funcionamento*\n7️⃣ *Falar com Atendente Humano*\n8️⃣ *Consultar Status do Chamado*\n\n💡 *Dica:* Pode me enviar qualquer mensagem em texto que eu te respondo na hora!`
+    async function mostrarMenuOpcoes(from) {
+        const menuTexto = `🔧 *LUKAS ENCANADOR - MENU DE ATENDIMENTO* 🚰\n\nPor favor, digite o *nome do serviço* ou selecione uma das opções abaixo:\n\n📌 *AGENDA* - Agendar Visita Técnica / Serviço\n📌 *ORCAMENTO* - Solicitar Orçamento Automático\n📌 *TABELA* - Ver Tabela de Serviços\n📌 *REGIAO* - Regiões e Taxa de Visita\n📌 *PAGAMENTO* - Formas de Pagamento\n📌 *HORARIO* - Horário de Atendimento\n📌 *ATENDENTE* - Falar com Atendente Humano`
         await client.sendMessage(from, { text: menuTexto })
     }
 
@@ -154,59 +119,79 @@ async function ligarbot() {
             if (!userData[from]) userData[from] = {}
 
             const estadoAtual = userState[from]
-            const rodapeNavegacao = `\n\n─────────────────\n↩ Digite *0* a qualquer momento para voltar ao Menu.`
+            const rodapeNavegacao = `\n\n─────────────────\n↩ Digite *MENU* ou *0* para voltar às opções.`
 
-            const pedeMenu = (textNorm === 'menu' || textNorm === '0' || textNorm === 'inicio')
-
-            if (pedeMenu && !estadoAtual.startsWith('chamado_')) {
+            // Comando de cancelamento ou volta ao menu
+            if ((textNorm === 'menu' || textNorm === '0' || textNorm === 'voltar' || textNorm === 'inicio') && !estadoAtual.startsWith('chamado_')) {
                 userState[from] = 'inicio'
                 delete userData[from]
-                await mostrarMenuTexto(from)
+                await mostrarMenuOpcoes(from)
                 return
             }
 
             if (estadoAtual === 'inicio') {
-                if (text === '1' || textNorm.includes('agendar') || textNorm.includes('solicitar')) {
+                // DETECÇÃO POR PALAVRAS-CHAVE E SELEÇÃO DE OPÇÕES
+
+                // 1. Agendamento / Visita Técnica
+                if (textNorm.includes('agendar') || textNorm.includes('visita') || textNorm.includes('agenda') || textNorm.includes('servico') || textNorm === '1') {
                     userState[from] = 'chamado_nome'
-                    await escrever('📋 *Abertura de Chamado - Lukas Encanador*\n\nPara iniciarmos o seu agendamento, por favor digite o seu *Nome completo*:' + rodapeNavegacao)
-                } else if (text === '2') {
-                    await escrever('📊 *Orçamento Automático*\n\nDescreva em poucas palavras qual o problema (ex: vazamento no banheiro, pia entupida, troca de torneira):' + rodapeNavegacao)
+                    await escrever('📋 *Agendamento de Visita Técnica - Lukas Encanador*\n\nPara iniciarmos o registro da sua visita, por favor informe o seu *Nome completo*:' + rodapeNavegacao)
+                
+                // 2. Orçamento
+                } else if (textNorm.includes('orcamento') || textNorm.includes('quanto custa') || textNorm.includes('valor') || textNorm === '2') {
+                    await escrever('📊 *Solicitação de Orçamento*\n\nPor favor, descreva em poucas palavras qual problema precisa resolver (ex: vazamento no banheiro, pia entupida, troca de torneira):' + rodapeNavegacao)
                     userState[from] = 'orcamento_detalhes'
-                } else if (text === '3') {
-                    await escrever(`🛠️ *Tabela de Serviços - Lukas Encanador*\n\n🔹 *Vazamentos:* Caça-vazamentos, reparo em canos, infiltrações.\n🔹 *Desentupimentos:* Pias, ralos, vasos e esgoto.\n🔹 *Reparos:* Torneiras, caixa acoplada, válvula Hydra.`)
-                } else if (text === '4') {
-                    await escrever(`📍 *Regiões Atendidas:*\n🔹 Itabuna\n🔹 Ilhéus\n🔹 Itapé\n\n🚗 *Taxa de Visita:* R$ 50,00`)
-                } else if (text === '5') {
-                    await escrever(`💳 *Pagamento:* Pix, Cartões ou Dinheiro.`)
-                } else if (text === '6') {
-                    await escrever(`⏰ *Atendimento:* Segunda a Sexta, 08h às 18h.`)
-                } else if (text === '7') {
-                    await escrever(`📞 Um atendente humano responderá em breve! Por favor, aguarde.`)
+
+                // 3. Tipos de Serviços / Tabela / Dúvidas Específicas
+                } else if (textNorm.includes('vazamento') || textNorm.includes('infiltracao') || textNorm.includes('cano') || textNorm.includes('entupido') || textNorm.includes('desentupir') || textNorm.includes('torneira') || textNorm.includes('tabela') || textNorm === '3') {
+                    await escrever(`🛠️ *Serviços Hidráulicos Prestados:*\n\n🔹 *Caça-Vazamentos e Infiltrações:* Identificação e reparo de vazamentos em canos e paredes.\n🔹 *Desentupimentos:* Pias, ralos, vasos sanitários e caixas de esgoto.\n🔹 *Reparos Gerais:* Troca de torneiras, reparos em caixas acopladas, válvulas Hydra e chuveiros.\n\nDeseja agendar uma visita técnica? Digite *AGENDA* para solicitar.` + rodapeNavegacao)
+
+                // 4. Região de Atendimento
+                } else if (textNorm.includes('regiao') || textNorm.includes('cidade') || textNorm.includes('bairro') || textNorm.includes('itabuna') || textNorm.includes('ilheus') || textNorm.includes('itape') || textNorm === '4') {
+                    await escrever(`📍 *Regiões Atendidas:*\n Atendemos em Itabuna, Ilhéus e Itapé.\n\n🚗 *Taxa de Visita Técnica:* R$ 50,00 (Valor abatido no total do serviço caso aprovado).` + rodapeNavegacao)
+
+                // 5. Pagamento
+                } else if (textNorm.includes('pagamento') || textNorm.includes('pix') || textNorm.includes('cartao') || textNorm.includes('dinheiro') || textNorm === '5') {
+                    await escrever(`💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito / Débito\n✅ Dinheiro` + rodapeNavegacao)
+
+                // 6. Horário
+                } else if (textNorm.includes('horario') || textNorm.includes('hora') || textNorm.includes('aberto') || textNorm === '6') {
+                    await escrever(`⏰ *Horário de Funcionamento:*\n\nSegunda a Sexta-feira, das 08h às 18h.` + rodapeNavegacao)
+
+                // 7. Atendente Humano
+                } else if (textNorm.includes('atendente') || textNorm.includes('humano') || textNorm.includes('falar') || textNorm === '7') {
+                    await escrever(`📞 Um atendente humano foi notificado e responderá esta conversa em breve. Por favor, aguarde!`)
+
+                // Resposta padrão direta caso não identifique a palavra-chave
                 } else {
-                    const respostaAI = await responderComGemini(text)
-                    await escrever(respostaAI)
+                    await escrever(`Olá! Entendi sua mensagem, mas para que eu possa te ajudar da melhor forma, por favor escolha uma das opções ou digite a palavra correspondente:\n\n👉 Digite *AGENDA* para agendar uma visita técnica\n👉 Digite *ORCAMENTO* para pedir um orçamento\n👉 Digite *TABELA* para ver os serviços prestados\n👉 Digite *ATENDENTE* para falar com um humano`)
                 }
+
             } else if (estadoAtual === 'orcamento_detalhes') {
                 userData[from].detalhes = text
-                await escrever(`✅ Registramos os detalhes do seu orçamento!\n\nDeseja realizar o agendamento completo do serviço agora?\n\nDigite *1* para Agendar ou *0* para voltar ao Menu.`)
+                await escrever(`✅ Registramos o detalhe do seu problema!\n\nDeseja confirmar a solicitação de agendamento presencial?\n\nDigite *AGENDA* para continuar ou *MENU* para voltar.`)
                 userState[from] = 'inicio'
+
             } else if (estadoAtual === 'chamado_nome') {
-                if (text === '0') { userState[from] = 'inicio'; await mostrarMenuTexto(from); return; }
+                if (textNorm === '0' || textNorm === 'menu') { userState[from] = 'inicio'; await mostrarMenuOpcoes(from); return; }
                 userData[from].nome = text
                 userState[from] = 'chamado_telefone'
-                await escrever(`Prazer, *${text}*! Digite seu *Telefone/WhatsApp* para contato:` + rodapeNavegacao)
+                await escrever(`Prazer, *${text}*! Agora digite seu *Telefone / WhatsApp* de contato:` + rodapeNavegacao)
+
             } else if (estadoAtual === 'chamado_telefone') {
-                if (text === '0') { userState[from] = 'inicio'; await mostrarMenuTexto(from); return; }
+                if (textNorm === '0' || textNorm === 'menu') { userState[from] = 'inicio'; await mostrarMenuOpcoes(from); return; }
                 userData[from].telefone = text
                 userState[from] = 'chamado_endereco'
-                await escrever('📍 Agora digite seu *Endereço completo* (Rua, Número e Bairro):' + rodapeNavegacao)
+                await escrever('📍 Por favor, informe o seu *Endereço completo* (Rua, Número, Bairro e Cidade):' + rodapeNavegacao)
+
             } else if (estadoAtual === 'chamado_endereco') {
-                if (text === '0') { userState[from] = 'inicio'; await mostrarMenuTexto(from); return; }
+                if (textNorm === '0' || textNorm === 'menu') { userState[from] = 'inicio'; await mostrarMenuOpcoes(from); return; }
                 userData[from].endereco = text
                 userState[from] = 'chamado_detalhes'
-                await escrever('📝 Descreva brevemente o serviço que precisa:' + rodapeNavegacao)
+                await escrever('📝 Descreva brevemente o serviço ou problema técnico que precisa ser resolvido:' + rodapeNavegacao)
+
             } else if (estadoAtual === 'chamado_detalhes') {
-                if (text === '0') { userState[from] = 'inicio'; await mostrarMenuTexto(from); return; }
+                if (textNorm === '0' || textNorm === 'menu') { userState[from] = 'inicio'; await mostrarMenuOpcoes(from); return; }
                 userData[from].detalhes = text
                 const protocolo = gerarProtocolo()
 
@@ -217,11 +202,11 @@ async function ligarbot() {
                     detalhes: userData[from].detalhes
                 })
 
-                // ENVIA APENAS O PEDIDO CONCLUÍDO PARA O GRUPO
-                const pedidoConcluido = `🚨 *NOVO PEDIDO CONCLUÍDO (#${protocolo})*\n\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${userData[from].telefone}\n📍 *Endereço:* ${userData[from].endereco}\n📝 *Serviço Solicitado:* ${userData[from].detalhes}`
+                // NOTIFICAÇÃO DE REGISTRO CONCLUÍDO ENVIADA PARA O GRUPO
+                const pedidoConcluido = `🚨 *NOVO AGENDAMENTO CONCLUÍDO (#${protocolo})*\n\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${userData[from].telefone}\n📍 *Endereço:* ${userData[from].endereco}\n📝 *Serviço:* ${userData[from].detalhes}`
                 await notificarGrupo(pedidoConcluido)
 
-                await escrever(`✅ *Chamado #${protocolo} Agendado com Sucesso!*\n\nSeu pedido foi finalizado e encaminhado para nossa equipe de atendimento. Entraremos em contato em breve!`)
+                await escrever(`✅ *Agendamento #${protocolo} Concluído com Sucesso!*\n\nSeu pedido foi registrado e encaminhado para nossa equipe. Entraremos em contato em breve para confirmar a visita!`)
                 
                 delete userState[from]
                 delete userData[from]
@@ -245,9 +230,8 @@ async function ligarbot() {
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot Lukas Encanador pronto!')
+            console.log('✅ Bot Lukas Encanador pronto e operando!')
             try {
-                // Resolve o link de convite para obter o ID real do grupo
                 const groupInfo = await client.groupGetInviteInfo(CODIGO_CONVITE_GRUPO)
                 idGrupoNotificacao = groupInfo.id
                 console.log(`📌 Grupo de notificações localizado: ${idGrupoNotificacao}`)

@@ -30,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Encaminhamento direto para o WhatsApp com o texto "orçamento automático"
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
@@ -112,6 +111,94 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+    }
+
+    // ==========================================
+    // LÓGICA DO WEB CHAT COM IA
+    // ==========================================
+    const chatFloatBtn = document.getElementById('chatFloatBtn');
+    const chatBox = document.getElementById('chatBox');
+    chatCloseBtn = document.getElementById('chatCloseBtn');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatBadge = document.getElementById('chatBadge');
+
+    let sessionId = localStorage.getItem('chat_session_id');
+    if (!sessionId) {
+        sessionId = 'sessao_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('chat_session_id', sessionId);
+    }
+
+    const mensagemBoasVindas = "Olá! Seja bem-vindo ao Lukas Encanador. 🛠️\nComo posso ajudar você hoje?";
+
+    if (chatMessages && chatMessages.children.length === 0) {
+        adicionarMensagem('bot', mensagemBoasVindas);
+    }
+
+    if (chatFloatBtn && chatBox) {
+        chatFloatBtn.addEventListener('click', () => {
+            chatBox.classList.toggle('open');
+            if (chatBadge) chatBadge.style.display = 'none';
+        });
+    }
+
+    if (chatCloseBtn && chatBox) {
+        chatCloseBtn.addEventListener('click', () => {
+            chatBox.classList.remove('open');
+        });
+    }
+
+    if (chatForm) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const mensagemTexto = chatInput.value.trim();
+            if (!mensagemTexto) return;
+
+            adicionarMensagem('user', mensagemTexto);
+            chatInput.value = '';
+
+            const loaderId = adicionarMensagem('bot', 'A escrever...');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        message: mensagemTexto
+                    })
+                });
+
+                const data = await response.json();
+                
+                const loaderElem = document.getElementById(loaderId);
+                if (loaderElem) loaderElem.remove();
+
+                if (data.sucesso || data.resposta) {
+                    adicionarMensagem('bot', data.resposta);
+                } else {
+                    adicionarMensagem('bot', 'Desculpe, ocorreu um erro ao processar sua resposta.');
+                }
+            } catch (err) {
+                const loaderElem = document.getElementById(loaderId);
+                if (loaderElem) loaderElem.remove();
+                adicionarMensagem('bot', 'Falha na conexão com o servidor. Tente novamente mais tarde.');
+            }
+        });
+    }
+
+    function adicionarMensagem(remetente, texto) {
+        const msgDiv = document.createElement('div');
+        const idUnico = 'msg_' + Date.now();
+        msgDiv.id = idUnico;
+        msgDiv.classList.add('message', remetente);
+        msgDiv.innerText = texto;
+        
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        return idUnico;
     }
 });
 

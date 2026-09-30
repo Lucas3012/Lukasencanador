@@ -88,6 +88,34 @@
     <i class="fa-brands fa-whatsapp"></i>
   </a>
 
+  <!-- Widget do Chat Flutuante -->
+  <div class="chat-widget-container">
+    <div class="chat-box" id="chatBox">
+      <div class="chat-header">
+        <div class="chat-header-info">
+          <i class="fa-solid fa-robot"></i>
+          <div>
+            <strong>Assistente Virtual</strong>
+            <small>Lukas Encanador</small>
+          </div>
+        </div>
+        <button class="chat-close-btn" id="chatCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="chat-messages" id="chatMessages"></div>
+
+      <form class="chat-input-area" id="chatForm">
+        <input type="text" id="chatInput" placeholder="Digite sua mensagem..." autocomplete="off" required />
+        <button type="submit" id="chatSendBtn"><i class="fa-solid fa-paper-plane"></i></button>
+      </form>
+    </div>
+
+    <button class="chat-float-btn" id="chatFloatBtn" title="Falar com Assistente">
+      <i class="fa-solid fa-comments"></i>
+      <span class="chat-badge" id="chatBadge">1</span>
+    </button>
+  </div>
+
   <footer>
     <p>&copy; Lukas Encanador. Todos os direitos reservados.</p>
   </footer>
@@ -95,4 +123,3 @@
   <script src="main.js"></script>
 </body>
 </html>
-

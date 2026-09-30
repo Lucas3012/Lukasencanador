@@ -2,10 +2,26 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
+const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'minha_chave_secreta_local';
+
+// Inicialização da API do Gemini
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const systemInstruction = `
+Você é a assistente virtual inteligente e profissional do Lukas Encanador.
+Sua missão é:
+1. Cumprimentar o cliente com cordialidade e profissionalismo.
+2. Tirar dúvidas sobre serviços de desentupimento, reparação de vazamentos, instalações hidráulicas e manutenções em geral.
+3. Se o cliente solicitar um orçamento ou atendimento urgente, oriente-o a informar o nome, telefone e o serviço desejado ou direcionar para o WhatsApp.
+4. Manter sempre um tom prestativo, objetivo e acolhedor.
+`;
+
+// Mapa para armazenar o histórico do chat de cada cliente em memória
+const chatSessions = new Map();
 
 // Middlewares CORS
 app.use((req, res, next) => {
@@ -49,7 +65,40 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Rotas da API
+// Rota do Web Chat (Gemini)
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { sessionId, message } = req.body;
+
+    if (!sessionId || !message) {
+      return res.status(400).json({ sucesso: false, mensagem: 'sessionId e message são obrigatórios' });
+    }
+
+    if (!chatSessions.has(sessionId)) {
+      const newChat = ai.chats.create({
+        model: 'gemini-2.5-flash',
+        config: {
+          systemInstruction: systemInstruction,
+          temperature: 0.7,
+        },
+      });
+      chatSessions.set(sessionId, newChat);
+    }
+
+    const chat = chatSessions.get(sessionId);
+    const response = await chat.sendMessage({ message });
+
+    return res.json({
+      sucesso: true,
+      resposta: response.text
+    });
+  } catch (error) {
+    console.error('Erro no atendimento do Chat:', error);
+    return res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao processar a resposta do assistente.' });
+  }
+});
+
+// Rotas da API Admin e Contacto
 app.post('/api/admin/login', (req, res) => {
   const usuarioInput = req.body.usuario || req.body.username;
   const senhaInput = req.body.senha || req.body.password;
@@ -121,8 +170,10 @@ app.listen(PORT, '0.0.0.0', () => {
       ? './Botencanador/index.js'
       : './index.js';
     
-    require(botPath);
-    console.log('🤖 Bot do WhatsApp inicializado junto com o servidor!');
+    if (fs.existsSync(botPath) && botPath !== './index.js') {
+      require(botPath);
+      console.log('🤖 Bot do WhatsApp inicializado junto com o servidor!');
+    }
   } catch (err) {
     console.error('❌ Erro ao inicializar o Bot do WhatsApp:', err.message);
   }
