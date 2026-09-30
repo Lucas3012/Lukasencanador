@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Modal de Pedir Orçamento enviando para o Bot do WhatsApp
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
@@ -37,36 +38,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: 'Solicitar Orçamento',
                 html: `
                     <input id="swal-nome" class="swal2-input" placeholder="Seu Nome *">
-                    <input id="swal-telefone" class="swal2-input" placeholder="Seu Telefone / WhatsApp *">
                     <select id="swal-servico" class="swal2-select" style="display: flex; width: 80%; margin: 1em auto;">
                         <option value="" disabled selected>Selecione o Serviço *</option>
-                        <option value="Vazamento">Reparação de Vazamento</option>
                         <option value="Desentupimento">Desentupimento</option>
-                        <option value="Instalacao">Instalação / Substituição</option>
-                        <option value="Outro">Outro Serviço</option>
+                        <option value="Reparação de Vazamento">Reparação de Vazamento</option>
+                        <option value="Instalações">Instalações</option>
+                        <option value="Outro Serviço">Outro Serviço</option>
                     </select>
-                    <textarea id="swal-mensagem" class="swal2-textarea" placeholder="Descreva brevemente o problema..."></textarea>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'Enviar Pedido',
+                confirmButtonText: 'Enviar para o Bot',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#0d47a1',
                 focusConfirm: false,
                 preConfirm: () => {
                     const nome = document.getElementById('swal-nome').value.trim();
-                    const telefone = document.getElementById('swal-telefone').value.trim();
                     const servico = document.getElementById('swal-servico').value;
-                    const mensagem = document.getElementById('swal-mensagem').value.trim();
 
-                    if (!nome || !telefone || !servico) {
-                        Swal.showValidationMessage('Por favor, preencha todos os campos obrigatórios (*)');
+                    if (!nome || !servico) {
+                        Swal.showValidationMessage('Por favor, preencha o seu nome e escolha o serviço.');
                         return false;
                     }
-                    return { nome, telefone, servico, mensagem };
+                    return { nome, servico };
                 }
-            }).then(async (result) => {
+            }).then((result) => {
                 if (result.isConfirmed) {
-                    await enviarOrcamentoAPI(result.value);
+                    const { nome, servico } = result.value;
+                    const numeroWhatsapp = "5573981070937";
+                    
+                    // Monta a mensagem que aciona o bot com o nome e serviço
+                    const textoMensagem = `2\nOlá, meu nome é ${nome} e gostaria de um orçamento para: ${servico}.`;
+                    const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(textoMensagem)}`;
+                    
+                    window.open(url, '_blank');
                 }
             });
         });
@@ -193,4 +197,3 @@ function exibirInfoServico(titulo, descricao) {
         }
     });
 }
-
