@@ -5,8 +5,8 @@ const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
 
-// Configuração da API do Gemini
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'SUA_CHAVE_API_GEMINI_AQUI'
+// Configuração da API do Gemini com a sua chave inserida
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6JZpdIHUjHmwU5XbZedY64Eh7s2CFQ8AzdkU1LtOM9kyA'
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
 let jaPareou = false
@@ -354,7 +354,7 @@ async function ligarbot() {
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado com sucesso com suporte a Listas e Botoes Interativos!')
+            console.log('✅ Bot conectado com sucesso com suporte a Listas, Botoes e Gemini AI!')
         }
         
         if (connection === 'close') {
