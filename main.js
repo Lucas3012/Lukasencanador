@@ -30,13 +30,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Redireciona para o bot do WhatsApp na opção 2 ao clicar em Pedir Orçamento
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
-            const numeroWhatsapp = "5573981070937";
-            const mensagemOpcao2 = encodeURIComponent("2");
-            window.open(`https://wa.me/${numeroWhatsapp}?text=${mensagemOpcao2}`, '_blank');
+            Swal.fire({
+                title: 'Solicitar Orçamento',
+                html: `
+                    <input id="swal-nome" class="swal2-input" placeholder="Seu Nome *">
+                    <input id="swal-telefone" class="swal2-input" placeholder="Seu Telefone / WhatsApp *">
+                    <select id="swal-servico" class="swal2-select" style="display: flex; width: 80%; margin: 1em auto;">
+                        <option value="" disabled selected>Selecione o Serviço *</option>
+                        <option value="Vazamento">Reparação de Vazamento</option>
+                        <option value="Desentupimento">Desentupimento</option>
+                        <option value="Instalacao">Instalação / Substituição</option>
+                        <option value="Outro">Outro Serviço</option>
+                    </select>
+                    <textarea id="swal-mensagem" class="swal2-textarea" placeholder="Descreva brevemente o problema..."></textarea>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Enviar Pedido',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0d47a1',
+                focusConfirm: false,
+                preConfirm: () => {
+                    const nome = document.getElementById('swal-nome').value.trim();
+                    const telefone = document.getElementById('swal-telefone').value.trim();
+                    const servico = document.getElementById('swal-servico').value;
+                    const mensagem = document.getElementById('swal-mensagem').value.trim();
+
+                    if (!nome || !telefone || !servico) {
+                        Swal.showValidationMessage('Por favor, preencha todos os campos obrigatórios (*)');
+                        return false;
+                    }
+                    return { nome, telefone, servico, mensagem };
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await enviarOrcamentoAPI(result.value);
+                }
+            });
         });
     }
 
@@ -161,3 +193,4 @@ function exibirInfoServico(titulo, descricao) {
         }
     });
 }
+
