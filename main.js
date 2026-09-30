@@ -30,13 +30,62 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Redireciona para o bot do WhatsApp na opção 2 ao clicar em Pedir Orçamento
+    // Modal idêntico ao da imagem do formulário
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
-            const numeroWhatsapp = "5573981070937";
-            const mensagemOpcao2 = encodeURIComponent("2");
-            window.open(`https://wa.me/${numeroWhatsapp}?text=${mensagemOpcao2}`, '_blank');
+            if (typeof Swal === 'undefined') {
+                alert('Erro: A biblioteca SweetAlert2 não foi carregada.');
+                return;
+            }
+
+            Swal.fire({
+                title: '📋 Solicitar Serviço',
+                html: `
+                    <div style="text-align: left; font-family: sans-serif; font-size: 14px; margin-top: 10px;">
+                        <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Nome Completo:</label>
+                        <input id="swal-nome" type="text" placeholder="Digite seu nome" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box; margin-bottom: 15px;">
+                        
+                        <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Tipo de Serviço:</label>
+                        <select id="swal-servico" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: #f8f9fa; box-sizing: border-box;">
+                            <option value="" disabled selected>Selecione uma opção...</option>
+                            <option value="Desentupimento">Desentupimento</option>
+                            <option value="Reparação de Vazamento">Reparação de Vazamento</option>
+                            <option value="Instalação">Instalação</option>
+                            <option value="Outro Serviço">Outro Serviço</option>
+                        </select>
+                    </div>
+                `,
+                showCloseButton: true,
+                showConfirmButton: true,
+                confirmButtonText: '🚀 Enviar para o WhatsApp',
+                confirmButtonColor: '#25D366',
+                customClass: {
+                    popup: 'swal2-custom-popup',
+                    confirmButton: 'swal2-custom-confirm'
+                },
+                focusConfirm: false,
+                preConfirm: () => {
+                    const nome = document.getElementById('swal-nome').value.trim();
+                    const servico = document.getElementById('swal-servico').value;
+
+                    if (!nome || !servico) {
+                        Swal.showValidationMessage('Por favor, preencha o seu nome e escolha um serviço.');
+                        return false;
+                    }
+                    return { nome, servico };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const { nome, servico } = result.value;
+                    const numeroWhatsapp = "5573981070937";
+                    
+                    const textoMensagem = `2\nOlá! Gostaria de solicitar um serviço.\n\n*Nome:* ${nome}\n*Serviço:* ${servico}`;
+                    const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(textoMensagem)}`;
+                    
+                    window.open(url, '_blank');
+                }
+            });
         });
     }
 
