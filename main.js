@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Modal contendo apenas o Nome Completo e envio de Orçamento Rápido para o WhatsApp
+    // Modal com apenas o Nome Completo e mensagem pré-configurada para o WhatsApp
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             Swal.fire({
-                title: '📋 Solicitar Serviço',
+                title: '📋 Solicitar Orçamento',
                 html: `
                     <div style="text-align: left; font-family: sans-serif; font-size: 14px; margin-top: 10px;">
                         <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Nome Completo:</label>
@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const { nome } = result.value;
                     const numeroWhatsapp = "5573981070937";
                     
+                    // Mensagem pré-configurada enviada ao seu bot
                     const textoMensagem = `2\nOlá! Meu nome é ${nome} e gostaria de solicitar um orçamento rápido.`;
                     const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(textoMensagem)}`;
                     
