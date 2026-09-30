@@ -30,13 +30,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Redireciona para o bot do WhatsApp na opção 2 ao clicar em Pedir Orçamento
+    // Modal no SweetAlert2 contendo APENAS Nome e Tipo de Serviço
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
-            const numeroWhatsapp = "5573981070937";
-            const mensagemOpcao2 = encodeURIComponent("2");
-            window.open(`https://wa.me/${numeroWhatsapp}?text=${mensagemOpcao2}`, '_blank');
+            Swal.fire({
+                title: 'Solicitar Orçamento',
+                html: `
+                    <input id="swal-nome" class="swal2-input" placeholder="Seu Nome *">
+                    <select id="swal-servico" class="swal2-select" style="display: flex; width: 80%; margin: 1em auto;">
+                        <option value="" disabled selected>Selecione o Serviço *</option>
+                        <option value="Desentupimento">Desentupimento</option>
+                        <option value="Reparação de Vazamento">Reparação de Vazamento</option>
+                        <option value="Instalações">Instalações</option>
+                        <option value="Outro Serviço">Outro Serviço</option>
+                    </select>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Enviar Pedido',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0d47a1',
+                focusConfirm: false,
+                preConfirm: () => {
+                    const nome = document.getElementById('swal-nome').value.trim();
+                    const servico = document.getElementById('swal-servico').value;
+
+                    if (!nome || !servico) {
+                        Swal.showValidationMessage('Por favor, preencha o nome e escolha o serviço.');
+                        return false;
+                    }
+                    return { nome, servico };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const { nome, servico } = result.value;
+                    const numeroWhatsapp = "5573981070937";
+                    
+                    const textoMensagem = `2\nOlá! Gostaria de um orçamento.\n\n*Nome:* ${nome}\n*Serviço:* ${servico}`;
+                    const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(textoMensagem)}`;
+                    
+                    window.open(url, '_blank');
+                }
+            });
         });
     }
 
