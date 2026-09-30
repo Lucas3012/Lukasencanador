@@ -5,7 +5,7 @@ const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
 
-// Configuração da API do Gemini (Substitui pela tua chave obtida no Google AI Studio)
+// Configuração da API do Gemini
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'SUA_CHAVE_API_GEMINI_AQUI'
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
@@ -40,9 +40,6 @@ function salvarChamado(protocolo, dados) {
     }
 }
 
-const LINK_GRUPO = 'EwUIug1DbI3IWZGkpbrJ8n' 
-const LINK_GRUPO_ATENDENTE = 'F0UYp2zG5pTAgtSE0dwctX'
-
 const userState = {} 
 const userData = {}
 
@@ -50,33 +47,6 @@ const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
 
 function normalizar(texto) {
     return texto ? texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : ""
-}
-
-const SERVICOS = {
-    desentupimento: [
-        "Desentupimento de pia/lavatório",
-        "Desentupimento de ralo/tanque",
-        "Desentupimento de vaso sanitário",
-        "Desentupimento coluna/rede principal",
-        "Limpeza/desentupimento caixa de gordura",
-        "Limpeza/desentupimento caixa de inspeção"
-    ],
-    reparos: [
-        "Troca de torneira simples/filtro",
-        "Instalação torneira monocomando/misturador",
-        "Troca de engate flexível / niple",
-        "Troca ou substituição de sifão",
-        "Troca de válvula de escoamento (ralo)",
-        "Reparo em válvula Hydra / Docol",
-        "Troca mecanismo interno caixa acoplada",
-        "Troca de bóia de caixa d'água",
-        "Troca de registro geral/gaveta/pressão",
-        "Limpeza de caixa d'água (até 1.000 L)",
-        "Limpeza de caixa d'água (1.500L a 3.000L)",
-        "Substituição tubulação do banheiro",
-        "Substituição tubulação da cozinha",
-        "Substituição tubulação por PVC/PPR"
-    ]
 }
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
@@ -93,7 +63,6 @@ const question = (texto) => new Promise((resolve) => {
     })
 })
 
-// Função para consultar o Gemini quando o utilizador faz perguntas gerais
 async function responderComGemini(pergunta) {
     try {
         const response = await ai.models.generateContent({
@@ -102,8 +71,7 @@ async function responderComGemini(pergunta) {
             config: {
                 systemInstruction: `Você é o assistente virtual inteligente de uma empresa de encanadores profissionais que atende Itabuna, Ilhéus e Itapé. 
 Sua função é tirar dúvidas simples sobre hidráulica, vazamentos e desentupimentos com cordialidade, objetividade e clareza.
-Sempre lembre o cliente de que soluções definitivas devem ser feitas por um especialista.
-No final da resposta, convide o cliente a digitar "1" para agendar uma visita ou "0" para ver o menu principal.`
+Sempre lembre o cliente de que soluções definitivas devem ser feitas por um especialista.`
             }
         });
         return response.text;
@@ -112,8 +80,6 @@ No final da resposta, convide o cliente a digitar "1" para agendar uma visita ou
         return null;
     }
 }
-
-const MENU_TEXTO = `Olá! 👋 Bem-vindo ao atendimento do Encanador.\n\nEscolha uma opção digitando o número correspondente ou o nome da opção:\n\n1️⃣ *Solicitar Serviço / Agendar*\n2️⃣ *Orçamento Automático*\n3️⃣ *Tabela de Serviços por Categoria*\n4️⃣ *Regiões de Atendimento & Taxa de Visita*\n5️⃣ *Formas de Pagamento Aceitas*\n6️⃣ *Horário de Funcionamento*\n7️⃣ *Falar com Atendente*\n8️⃣ *Status do Atendimento / Reclamação*`
 
 async function ligarbot() {
     const { state, saveCreds } = await useMultiFileAuthState('./sessao')
@@ -129,6 +95,26 @@ async function ligarbot() {
 
     client.ev.on('creds.update', saveCreds)
 
+    // Função para enviar Menu como Enquete (Botão de Escolha)
+    async function enviarMenuBotoes(from, info) {
+        await client.sendMessage(from, {
+            poll: {
+                name: "👋 Olá! Bem-vindo ao atendimento do Encanador.\nComo posso te ajudar hoje? Escolha uma opção abaixo:",
+                values: [
+                    "1️⃣ Solicitar Serviço / Agendar",
+                    "2️⃣ Orçamento Automático",
+                    "3️⃣ Tabela de Serviços por Categoria",
+                    "4️⃣ Regiões de Atendimento & Taxa",
+                    "5️⃣ Formas de Pagamento",
+                    "6️⃣ Horário de Funcionamento",
+                    "7️⃣ Falar com Atendente",
+                    "8️⃣ Status do Atendimento / Reclamação"
+                ],
+                selectableCount: 1
+            }
+        }, { quoted: info })
+    }
+
     client.ev.on('messages.upsert', async ({ messages }) => {
         try {
             const info = messages[0]
@@ -140,13 +126,21 @@ async function ligarbot() {
 
             await client.readMessages([{ remoteJid: from, id: info.key.id, participant: info.key.participant }])
 
-            const altpdf = Object.keys(info.message)
-            const type = altpdf[0] === 'senderKeyDistributionMessage' ? altpdf[1] === 'messageContextInfo' ? altpdf[2] : altpdf[1] : altpdf[0]
+            // Trata mensagens de texto comuns ou votos em enquetes/botões
+            let text = ""
+            if (info.message.conversation) {
+                text = info.message.conversation
+            } else if (info.message.extendedTextMessage) {
+                text = info.message.extendedTextMessage.text
+            } else if (info.message.pollCreationMessage) {
+                return
+            } else if (info.message.pollUpdateMessage) {
+                // Captura clique no botão da enquete (se houver)
+                const vote = info.message.pollUpdateMessage
+                if (vote) text = "menu"
+            }
 
-            const texto_exato = (type === 'conversation') ? info.message.conversation : (type === 'extendedTextMessage') ? info.message.extendedTextMessage.text : (type === 'imageMessage') ? info.message.imageMessage.caption : ''
-            const text = texto_exato.trim()
             const textNorm = normalizar(text)
-
             if (!text) return
 
             console.log(`📩 Mensagem recebida de [${from}]: "${text}"`)
@@ -161,72 +155,76 @@ async function ligarbot() {
             if (!userData[from]) userData[from] = {}
 
             const estadoAtual = userState[from]
-            const rodapeNavegacao = `\n\n─────────────────\n↩️ *9* - Voltar à Pergunta Anterior\n🏠 *0* - Voltar ao Menu Principal`
+            const rodapeNavegacao = `\n\n─────────────────\n↩️ Envie *0* para voltar ao Menu Principal.`
 
             if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm === 'inicio') && estadoAtual !== 'inicio') {
                 userState[from] = 'inicio'
                 delete userData[from]
-                await escrever(MENU_TEXTO)
+                await enviarMenuBotoes(from, info)
                 return
             }
 
             if (estadoAtual === 'inicio') {
-                if (text === '1' || textNorm.includes('solicitar') || textNorm.includes('agendar') || textNorm.includes('chamado') || textNorm.includes('servico')) {
+                if (text === '1' || textNorm.includes('1') || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
                     userState[from] = 'chamado_nome'
                     await escrever('📋 *Abertura de Chamado*\n\nPara iniciarmos, por favor digite o seu *Nome completo*:' + rodapeNavegacao)
-                } else if (text === '2' || textNorm.includes('orcamento') || textNorm.includes('valor') || textNorm.includes('preco')) {
+                } else if (text === '2' || textNorm.includes('2') || textNorm.includes('orcamento')) {
                     userState[from] = 'orcamento_categoria'
-                    const introOrcamento = `📊 *Orçamento Automático*\n\nSelecione a categoria do serviço para ver as opções disponíveis:\n\n1️⃣ *Vazamentos*\n2️⃣ *Desentupimentos*\n3️⃣ *Reparo / Manutenção*` + rodapeNavegacao
-                    await escrever(introOrcamento)
-                } else if (text === '3' || textNorm.includes('tabela') || textNorm.includes('lista') || textNorm.includes('categoria')) {
+                    await client.sendMessage(from, {
+                        poll: {
+                            name: "📊 *Orçamento Automático*\nSelecione a categoria do serviço:",
+                            values: ["1️⃣ Vazamentos", "2️⃣ Desentupimentos", "3️⃣ Reparo / Manutenção"],
+                            selectableCount: 1
+                        }
+                    }, { quoted: info })
+                } else if (text === '3' || textNorm.includes('3') || textNorm.includes('tabela')) {
                     userState[from] = 'tabela_categoria'
-                    const menuPrecos = `🛠️ *Lista de Serviços por Categoria*\n\nEscolha qual categoria de serviço você deseja consultar:\n\n1️⃣ *Vazamentos*\n2️⃣ *Desentupimentos*\n3️⃣ *Reparo / Manutenção*` + rodapeNavegacao
-                    await escrever(menuPrecos)
-                } else if (text === '4' || textNorm.includes('regiao') || textNorm.includes('regioes') || textNorm.includes('visita') || textNorm.includes('cidade') || textNorm.includes('taxa')) {
-                    const regioes = `📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos exclusivamente nas seguintes cidades:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita/Avaliação:* R$ 50,00 (Esse valor é abatido no total caso o serviço seja aprovado!).\n\nO que deseja fazer agora?\n1️⃣ *Registrar Chamado Agora*\n0️⃣ *Voltar ao Menu Principal*`
+                    await client.sendMessage(from, {
+                        poll: {
+                            name: "🛠️ *Lista de Serviços por Categoria*\nEscolha qual categoria deseja consultar:",
+                            values: ["1️⃣ Vazamentos", "2️⃣ Desentupimentos", "3️⃣ Reparo / Manutenção"],
+                            selectableCount: 1
+                        }
+                    }, { quoted: info })
+                } else if (text === '4' || textNorm.includes('4') || textNorm.includes('regiao') || textNorm.includes('visita')) {
+                    const regioes = `📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (Abatido no total caso o serviço seja aprovado!).`
                     await escrever(regioes)
-                    userState[from] = 'regioes_pos_opcao'
-                } else if (text === '5' || textNorm.includes('pagamento') || textNorm.includes('pix') || textNorm.includes('cartao') || textNorm.includes('dinheiro')) {
-                    const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro em espécie\n\nO que deseja fazer agora?\n1️⃣ *Registrar Chamado Agora*\n0️⃣ *Voltar ao Menu Principal*`
+                    await enviarMenuBotoes(from, info)
+                } else if (text === '5' || textNorm.includes('5') || textNorm.includes('pagamento')) {
+                    const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro`
                     await escrever(pagamentos)
-                    userState[from] = 'pagamento_pos_opcao'
-                } else if (text === '6' || textNorm.includes('horario') || textNorm.includes('hora') || textNorm.includes('funcionamento') || textNorm.includes('aberto')) {
-                    const horarios = `⏰ *Horário de Atendimento:*\n\nAtendemos de Segunda a Sexta-feira, das 08h às 18h.\n\nO que deseja fazer agora?\n1️⃣ *Registrar Chamado Agora*\n0️⃣ *Voltar ao Menu Principal*`
+                    await enviarMenuBotoes(from, info)
+                } else if (text === '6' || textNorm.includes('6') || textNorm.includes('horario')) {
+                    const horarios = `⏰ *Horário de Atendimento:*\n\nSegunda a Sexta-feira, das 08h às 18h.`
                     await escrever(horarios)
-                    userState[from] = 'horario_pos_opcao'
-                } else if (text === '7' || textNorm.includes('atendente') || textNorm.includes('humano') || textNorm.includes('falar') || textNorm.includes('pessoa')) {
-                    await escrever('⏳ Aguarde um momento...')
+                    await enviarMenuBotoes(from, info)
+                } else if (text === '7' || textNorm.includes('7') || textNorm.includes('atendente')) {
                     userState[from] = 'atendente_nome'
-                    await escrever('📞 *Atendimento Humano*\n\nPara encaminharmos você a um de nossos especialistas, por favor digite seu *Nome completo*:' + rodapeNavegacao)
-                } else if (text === '8' || textNorm.includes('status') || textNorm.includes('reclamacao') || textNorm.includes('protocolo') || textNorm.includes('consultar')) {
+                    await escrever('📞 *Atendimento Humano*\n\nPara encaminharmos você a um especialista, digite seu *Nome completo*:' + rodapeNavegacao)
+                } else if (text === '8' || textNorm.includes('8') || textNorm.includes('status') || textNorm.includes('reclamacao')) {
                     userState[from] = 'reclamacao_nome'
                     await escrever('🔍 *Consulta de Status / Reclamação*\n\nPor favor, informe o seu *Nome completo*:' + rodapeNavegacao)
                 } else {
-                    // Resposta do Gemini para dúvidas gerais
-                    await client.sendPresenceUpdate('composing', from)
                     const respostaAI = await responderComGemini(text)
                     if (respostaAI) {
                         await escrever(respostaAI)
-                    } else {
-                        await escrever(MENU_TEXTO)
                     }
+                    await enviarMenuBotoes(from, info)
                 }
             }
 
             else if (estadoAtual === 'chamado_nome') {
-                if (text === '9' || textNorm === 'voltar') { userState[from] = 'inicio'; await escrever(MENU_TEXTO); return; }
+                if (text === '0' || textNorm === 'voltar') { userState[from] = 'inicio'; await enviarMenuBotoes(from, info); return; }
                 userData[from].nome = text
                 userState[from] = 'chamado_telefone'
                 await escrever(`Prazer, *${text}*! 👋\n\nAgora, digite o seu *Telefone para Contato/WhatsApp* (com DDD):` + rodapeNavegacao)
             }
             else if (estadoAtual === 'chamado_telefone') {
-                if (text === '9' || textNorm === 'voltar') { userState[from] = 'chamado_nome'; await escrever('📋 *Abertura de Chamado*\n\nPor favor, digite o seu *Nome completo*:' + rodapeNavegacao); return; }
                 userData[from].telefone = text
                 userState[from] = 'chamado_endereco'
                 await escrever('📍 Perfeito! Agora, digite o seu *Endereço completo* (Rua, Número, Bairro):' + rodapeNavegacao)
             }
             else if (estadoAtual === 'chamado_endereco') {
-                if (text === '9' || textNorm === 'voltar') { userState[from] = 'chamado_telefone'; await escrever('Digite o seu *Telefone para Contato/WhatsApp* (com DDD):' + rodapeNavegacao); return; }
                 userData[from].endereco = text
                 userState[from] = 'chamado_detalhes'
                 await escrever('📝 Descreva brevemente o problema ou o serviço que você precisa:' + rodapeNavegacao)
@@ -266,7 +264,7 @@ async function ligarbot() {
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado com sucesso com suporte ao Gemini AI!')
+            console.log('✅ Bot conectado com sucesso com suporte a Botoes/Enquetes!')
         }
         
         if (connection === 'close') {
