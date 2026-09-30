@@ -30,49 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Modal com apenas o Nome Completo e mensagem de Orçamento Automático
+    // Encaminhamento direto para o WhatsApp com o texto "orçamento automático"
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
-            if (typeof Swal === 'undefined') {
-                alert('Erro: A biblioteca SweetAlert2 não foi carregada.');
-                return;
-            }
-
-            Swal.fire({
-                title: '📋 Solicitar Orçamento',
-                html: `
-                    <div style="text-align: left; font-family: sans-serif; font-size: 14px; margin-top: 10px;">
-                        <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Nome Completo:</label>
-                        <input id="swal-nome" type="text" placeholder="Digite seu nome" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px;">
-                    </div>
-                `,
-                showCloseButton: true,
-                showConfirmButton: true,
-                confirmButtonText: '🚀 Enviar para o WhatsApp',
-                confirmButtonColor: '#25D366',
-                focusConfirm: false,
-                preConfirm: () => {
-                    const nome = document.getElementById('swal-nome').value.trim();
-
-                    if (!nome) {
-                        Swal.showValidationMessage('Por favor, digite o seu nome.');
-                        return false;
-                    }
-                    return { nome };
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const { nome } = result.value;
-                    const numeroWhatsapp = "5573981070937";
-                    
-                    // Mensagem ajustada sem o número 2 e solicitando orçamento automático
-                    const textoMensagem = `Olá! Meu nome é ${nome} e gostaria de solicitar um orçamento automático.`;
-                    const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(textoMensagem)}`;
-                    
-                    window.open(url, '_blank');
-                }
-            });
+            const numeroWhatsapp = "5573981070937";
+            const textoMensagem = "orçamento automático";
+            const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(textoMensagem)}`;
+            
+            window.open(url, '_blank');
         });
     }
 
