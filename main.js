@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Modal com apenas o Nome Completo e mensagem pré-configurada para o WhatsApp
+    // Modal com apenas o Nome Completo e mensagem de Orçamento Automático
     const btnPedirOrcamento = document.getElementById('btnPedirOrcamento');
     if (btnPedirOrcamento) {
         btnPedirOrcamento.addEventListener('click', () => {
@@ -66,8 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const { nome } = result.value;
                     const numeroWhatsapp = "5573981070937";
                     
-                    // Mensagem pré-configurada enviada ao seu bot
-                    const textoMensagem = `2\nOlá! Meu nome é ${nome} e gostaria de solicitar um orçamento rápido.`;
+                    // Mensagem ajustada sem o número 2 e solicitando orçamento automático
+                    const textoMensagem = `Olá! Meu nome é ${nome} e gostaria de solicitar um orçamento automático.`;
                     const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(textoMensagem)}`;
                     
                     window.open(url, '_blank');
