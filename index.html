@@ -1,8 +1,203 @@
-<div class="hero-buttons">
-  <a href="https://wa.me/5573981070937?text=2" class="btn-primary" target="_blank">
-    <i class="fa-solid fa-calculator"></i> Pedir Orçamento
-  </a>
-  <a href="https://wa.me/5573981070937" class="btn-secondary" target="_blank">
-    <i class="fa-brands fa-whatsapp"></i> WhatsApp
-  </a>
-</div>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encanador Profissional - Itabuna e Região</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+
+        header {
+            background-color: #0056b3;
+            color: white;
+            padding: 30px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        h1 { font-size: 26px; margin-bottom: 10px; }
+        p { font-size: 16px; margin-bottom: 15px; }
+
+        .btn-agendar {
+            background-color: #25d366;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            transition: background 0.3s;
+        }
+
+        .btn-agendar:hover {
+            background-color: #1ebc57;
+        }
+
+        /* Modal / Pop-up Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 15px;
+        }
+
+        .modal-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 450px;
+            width: 100%;
+            text-align: left;
+            position: relative;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .modal-card h2 {
+            margin-bottom: 15px;
+            color: #0056b3;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .btn-submit {
+            background-color: #25d366;
+            color: white;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background-color: #1ebc57;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🔧 Serviço de Encanador Profissional</h1>
+        <p>Atendimento rápido em Itabuna, Ilhéus e Itapé</p>
+        <button class="btn-agendar" onclick="openModal()">📲 Solicitar Agendamento</button>
+    </header>
+
+    <!-- Modal Form -->
+    <div class="modal-overlay" id="modalForm">
+        <div class="modal-card">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>📋 Solicitar Serviço</h2>
+            
+            <form onsubmit="enviarParaWhatsApp(event)">
+                <div class="form-group">
+                    <label for="nome">Nome Completo:</label>
+                    <input type="text" id="nome" placeholder="Digite seu nome" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="servico">Tipo de Serviço:</label>
+                    <select id="servico" required>
+                        <option value="">Selecione uma opção...</option>
+                        <option value="Vazamento">💧 Vazamento / Avaliação no local</option>
+                        <option value="Desentupimento de pia">🪠 Desentupimento de pia/lavatório</option>
+                        <option value="Desentupimento de ralo">🪠 Desentupimento de ralo/tanque</option>
+                        <option value="Desentupimento de vaso">🪠 Desentupimento de vaso sanitário</option>
+                        <option value="Desentupimento caixa de gordura">🪠 Limpeza/Desentupimento caixa de gordura</option>
+                        <option value="Troca de torneira">🛠️ Troca de torneira / filtro</option>
+                        <option value="Troca de sifão">🛠️ Troca de sifão / engate flexível</option>
+                        <option value="Reparo caixa acoplada">🛠️️ Reparo em caixa acoplada / Vaso</option>
+                        <option value="Limpeza de caixa d'água">🧹 Limpeza de caixa d'água</option>
+                        <option value="Atendimento Humano">📞 Outro assunto / Falar com Atendente</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-submit">🚀 Enviar para o WhatsApp</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const NUMERO_WHATSAPP = "5573981070937";
+
+        function openModal() {
+            document.getElementById('modalForm').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modalForm').style.display = 'none';
+        }
+
+        function enviarParaWhatsApp(event) {
+            event.preventDefault();
+            const nome = document.getElementById('nome').value;
+            const servico = document.getElementById('servico').value;
+
+            // Formata mensagem contendo palavras que o bot reconhece automaticamente
+            const mensagem = `Olá, meu nome é ${nome} e gostaria de solicitar o serviço de ${servico}.`;
+            const url = `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(mensagem)}`;
+
+            window.open(url, '_blank');
+            closeModal();
+        }
+
+        // Fechar modal clicando fora do card
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalForm');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
