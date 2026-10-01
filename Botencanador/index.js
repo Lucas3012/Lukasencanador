@@ -1,12 +1,8 @@
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('@whiskeysockets/baileys')
-const { GoogleGenAI } = require('@google/genai')
 const pino = require('pino')
 const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'SUA_CHAVE_API_GEMINI_AQUI'
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
 let jaPareou = false
 
@@ -82,23 +78,20 @@ const question = (texto) => new Promise((resolve) => {
     })
 })
 
-async function responderComGemini(pergunta) {
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: pergunta,
-            config: {
-                systemInstruction: `Você é o assistente virtual inteligente de uma empresa de encanadores profissionais que atende Itabuna, Ilhéus e Itapé.
-Sua função é tirar dúvidas simples sobre hidráulica, vazamentos e desentupimentos com cordialidade, objetividade e clareza.
-Sempre lembre o cliente de que soluções definitivas devem ser feitas por um especialista.
-No final da resposta, convide o cliente a digitar "1" para agendar uma visita ou "0" para ver o menu principal.`
-            }
-        });
-        return response.text;
-    } catch (err) {
-        console.error('Erro na chamada do Gemini:', err);
-        return null;
+function respostaPorRegras(texto) {
+    const textNorm = normalizar(texto)
+
+    if (textNorm.includes('vazamento') || textNorm.includes('infiltracao') || textNorm.includes('cano')) {
+        return `💧 *Serviços de Vazamento:*\nAtendemos infiltrações, vazamentos em canos, torneiras e caixas d'água.\n\nDigite *1* para agendar uma visita técnica ou *0* para ver o menu.`
     }
+    if (textNorm.includes('desentup') || textNorm.includes('pia') || textNorm.includes('ralo') || textNorm.includes('esgoto')) {
+        return `🚽 *Serviços de Desentupimento:*\nDesentupimos pias, ralos, vasos sanitários, caixas de gordura e rede principal.\n\nDigite *1* para solicitar atendimento ou *0* para ver o menu.`
+    }
+    if (textNorm.includes('preco') || textNorm.includes('valor') || textNorm.includes('quanto')) {
+        return `💰 *Valores & Visita:*\nTaxa de visita: R$ 50,00 (valor abatido no total caso o serviço seja aprovado!).\n\nDigite *1* para agendar ou *0* para ver o menu.`
+    }
+
+    return MENU_TEXTO
 }
 
 const MENU_TEXTO = `Olá! 👋 Bem-vindo ao atendimento do Encanador.\n\nEscolha uma opção digitando o número correspondente:\n\n1️⃣ *Solicitar Serviço / Agendar*\n2️⃣ *Orçamento Automático*\n3️⃣ *Tabela de Serviços por Categoria*\n4️⃣ *Regiões de Atendimento & Taxa de Visita*\n5️⃣ *Formas de Pagamento Aceitas*\n6️⃣ *Horário de Funcionamento*\n7️⃣ *Falar com Atendente*\n8️⃣ *Status do Atendimento / Reclamação*`
@@ -179,13 +172,8 @@ async function ligarbot() {
                     userState[from] = 'pedir_nome'
                     await escrever('📞 *Atendimento Humano*\n\nPor favor, digite o seu *Nome Completo*:' + rodapeNavegacao)
                 } else {
-                    await client.sendPresenceUpdate('composing', from)
-                    const respostaAI = await responderComGemini(text)
-                    if (respostaAI) {
-                        await escrever(respostaAI)
-                    } else {
-                        await escrever(MENU_TEXTO)
-                    }
+                    const resposta = respostaPorRegras(text)
+                    await escrever(resposta)
                 }
             }
 
@@ -270,7 +258,7 @@ async function ligarbot() {
                     detalhes: userData[from].detalhes
                 })
 
-                const resumoChamado = `📝 *CHAMADO REGISTRADO COM SUCESSO!*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📂 *Categoria:* ${userData[from].categoria || 'Geral'}\n🛠️️ *Descrição:* ${userData[from].detalhes}\n📞 *Telefone:* ${userData[from].telefone}\n📍 *Endereço:* ${userData[from].endereco}`
+                const resumoChamado = `📝 *CHAMADO REGISTRADO COM SUCESSO!*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📂 *Categoria:* ${userData[from].categoria || 'Geral'}\n🛠️ *Descrição:* ${userData[from].detalhes}\n📞 *Telefone:* ${userData[from].telefone}\n📍 *Endereço:* ${userData[from].endereco}`
                 
                 await escrever(resumoChamado)
                 await escrever(`✅ Obrigado, *${userData[from].nome}*! O seu chamado foi gerado. Um técnico entrará em contato em breve.`)
