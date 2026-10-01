@@ -3,7 +3,7 @@ const { GoogleGenAI } = require('@google/genai')
 const pino = require('pino')
 const readline = require('readline')
 const fs = require('fs')
-const path = path = require('path')
+const path = require('path')
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'SUA_CHAVE_API_GEMINI_AQUI'
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
@@ -270,7 +270,7 @@ async function ligarbot() {
                     detalhes: userData[from].detalhes
                 })
 
-                const resumoChamado = `📝 *CHAMADO REGISTRADO COM SUCESSO!*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📂 *Categoria:* ${userData[from].categoria || 'Geral'}\n🛠️ *Descrição:* ${userData[from].detalhes}\n📞 *Telefone:* ${userData[from].telefone}\n📍 *Endereço:* ${userData[from].endereco}`
+                const resumoChamado = `📝 *CHAMADO REGISTRADO COM SUCESSO!*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📂 *Categoria:* ${userData[from].categoria || 'Geral'}\n🛠️️ *Descrição:* ${userData[from].detalhes}\n📞 *Telefone:* ${userData[from].telefone}\n📍 *Endereço:* ${userData[from].endereco}`
                 
                 await escrever(resumoChamado)
                 await escrever(`✅ Obrigado, *${userData[from].nome}*! O seu chamado foi gerado. Um técnico entrará em contato em breve.`)
