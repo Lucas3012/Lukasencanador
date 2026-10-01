@@ -49,7 +49,57 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Rotas da API
+// Lógica do Chatbot por Regras Fixas
+function processarMensagemChat(mensagem) {
+  if (!mensagem) return "Como posso ajudar você hoje?";
+
+  const texto = mensagem.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  if (texto.includes('orcamento') || texto.includes('agendar') || texto.includes('preco') || texto.includes('valor') || texto === '1') {
+    return "🛠️ Para solicitar um *orçamento* ou agendar uma visita técnica:\n\n1️⃣ Digite o seu *Nome Completo*\n2️⃣ Descreva o problema (vazamento, desentupimento, etc.)\n3️⃣ Informe o seu endereço com bairro.\n\nOu clique no botão do WhatsApp para falar direto com o técnico!";
+  }
+
+  if (texto.includes('vazamento') || texto.includes('infiltracao') || texto.includes('cano') || texto.includes('pingando')) {
+    return "💧 *Serviços de Vazamentos:*\nRealizamos localização e reparo de vazamentos em canos, torneiras, vasos sanitários e infiltrações.\n\nPara agendar uma avaliação no local, informe o seu nome e endereço!";
+  }
+
+  if (texto.includes('desentup') || texto.includes('pia') || texto.includes('ralo') || texto.includes('esgoto') || texto.includes('vaso')) {
+    return "🚽 *Serviços de Desentupimento:*\nAtendemos desentupimento de pias, ralos, vasos sanitários, caixas de gordura e esgoto em geral.\n\nInforme o seu nome e bairro para verificarmos a disponibilidade imediata.";
+  }
+
+  if (texto.includes('regiao') || texto.includes('onde') || texto.includes('cidade') || texto.includes('atende') || texto.includes('taxa') || texto.includes('visita')) {
+    return "📍 *Regiões de Atendimento:*\nAtendemos em *Itabuna*, *Ilhéus* e *Itapé*.\n\n🚗 *Taxa de visita:* R$ 50,00 (valor abatido do total caso o serviço seja aprovado!).";
+  }
+
+  if (texto.includes('pagamento') || texto.includes('cartao') || texto.includes('pix') || texto.includes('dinheiro')) {
+    return "💳 *Formas de Pagamento Aceitas:*\nAceitamos Pix, Cartão de Crédito/Débito e Dinheiro.";
+  }
+
+  if (texto.includes('horario') || texto.includes('funciona') || texto.includes('aberto') || texto.includes('tempo')) {
+    return "⏰ *Horário de Atendimento:*\nAtendemos de Segunda a Sexta, das 08h às 18h.";
+  }
+
+  if (texto.includes('ola') || texto.includes('oi') || texto.includes('bom dia') || texto.includes('boa tarde') || texto.includes('boa noite')) {
+    return "Olá! 👋 Seja bem-vindo ao atendimento do *Lukas Encanador*.\n\nComo posso ajudar você hoje?\n\n• Digite *1* para Pedir Orçamento\n• Digite *2* para Dúvidas sobre Serviços\n• Digite *3* para Regiões de Atendimento";
+  }
+
+  return "Obrigado pelo contato! 👋 Para podermos te atender melhor, informe o seu *Nome*, *Bairro* e o *Serviço necessário*, ou escolha uma das opções:\n\n1️⃣ Solicitar Orçamento\n2️⃣ Regiões de Atendimento\n3️⃣ Falar no WhatsApp";
+}
+
+// Rota do Chat do Site
+app.post('/chat', (req, res) => {
+  try {
+    const { message, mensagem } = req.body;
+    const textoEntrada = message || mensagem;
+    const resposta = processarMensagemChat(textoEntrada);
+    res.json({ reply: resposta, resposta });
+  } catch (error) {
+    console.error("Erro no chat:", error);
+    res.status(500).json({ reply: "Desculpe, ocorreu um erro interno. Tente novamente." });
+  }
+});
+
+// Rotas da API Admin e Contacto
 app.post('/api/admin/login', (req, res) => {
   const usuarioInput = req.body.usuario || req.body.username;
   const senhaInput = req.body.senha || req.body.password;
