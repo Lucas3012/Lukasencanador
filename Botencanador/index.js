@@ -9,6 +9,10 @@ const path = require('path')
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
+// Código do convite do grupo de transbordo/chamados
+const LINK_CONVITE_GRUPO = 'EwUIug1DbI3IWZGkpbrJ8n' 
+let ID_GRUPO_NOTIFICACAO = null // Será descoberto automaticamente ao iniciar
+
 let jaPareou = false
 
 // Arquivo local para persistência de dados
@@ -335,7 +339,7 @@ async function ligarbot() {
                 }
             }
 
-            // Tratamento das categorias com 20 serviços em cada
+            // Tratamento das categorias
             else if (estadoAtual === 'tabela_categoria') {
                 if (text === 'tab_vazamentos' || textNorm.includes('vazamento')) {
                     const listaVazamentos = `🔍 *Lista de Serviços - Vazamentos (20 Opções):*\n\n` +
@@ -411,7 +415,7 @@ async function ligarbot() {
                         `10. Troca de mecanismo interno de caixa acoplada\n` +
                         `11. Instalação de duchas higiênicas e engates flexíveis\n` +
                         `12. Troca de registros de pressão (chuveiro) e gaveta (geral)\n` +
-                        `13. Instalação e substituição de chuveiros e duchaselétricas\n` +
+                        `13. Instalação e substituição de chuveiros e duchas elétricas\n` +
                         `14. Troca de anel de vedação de vaso sanitário (combate ao mau cheiro)\n` +
                         `15. Instalação e manutenção de triturador de pia de cozinha\n` +
                         `16. Instalação e adequação de pontos de água para máquina de lavar\n` +
@@ -458,9 +462,23 @@ async function ligarbot() {
                     endereco: userData[from].endereco,
                     detalhes: userData[from].detalhes
                 })
+                
                 const resumoChamado = `🚨 *NOVO CHAMADO REGISTRADO*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${userData[from].telefone}\n🏠 *Endereço:* ${userData[from].endereco}\n📝 *Detalhes:* ${userData[from].detalhes}`
+                
+                // Envia para o cliente que criou o chamado
                 await escrever(resumoChamado)
                 await escrever(`✅ *Chamado #${protocolo} registrado com sucesso!* Um de nossos técnicos entrará em contato em instantes.`)
+                
+                // Envia a notificação diretamente para o grupo do WhatsApp
+                if (ID_GRUPO_NOTIFICACAO) {
+                    try {
+                        await client.sendMessage(ID_GRUPO_NOTIFICACAO, { text: `📢 *ATENÇÃO EQUIPE*\nUm novo chamado foi recebido pelo bot:\n\n` + resumoChamado })
+                        console.log(`📢 Chamado #${protocolo} encaminhado para o grupo!`)
+                    } catch (err) {
+                        console.error('Erro ao enviar mensagem para o grupo:', err)
+                    }
+                }
+
                 delete userState[from]
                 delete userData[from]
             }
@@ -484,6 +502,15 @@ async function ligarbot() {
         
         if (connection === 'open') {
             console.log('✅ Bot conectado com sucesso com suporte a Listas e Botoes Interativos!')
+            
+            // Resolve o ID do grupo através do código de convite fornecido
+            try {
+                const infoGrupo = await client.groupGetInviteInfo(LINK_CONVITE_GRUPO)
+                ID_GRUPO_NOTIFICACAO = infoGrupo.id
+                console.log(`👥 Grupo de notificações identificado com sucesso: ${infoGrupo.subject} (${ID_GRUPO_NOTIFICACAO})`)
+            } catch (e) {
+                console.error('⚠️ Não foi possível obter as informações do grupo via link:', e.message)
+            }
         }
         
         if (connection === 'close') {
