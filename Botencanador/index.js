@@ -1,11 +1,17 @@
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('@whiskeysockets/baileys')
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, Browsers, DisconnectReason, generateWAMessageFromContent, proto } = require('@itsliaaa/baileys')
+const { GoogleGenAI } = require('@google/genai')
 const pino = require('pino')
 const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
 
+// Configuração da API do Gemini
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'SUA_CHAVE_API_GEMINI_AQUI'
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+
 let jaPareou = false
 
+// Arquivo local para persistência de dados
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
 
 function carregarChamados() {
@@ -43,32 +49,11 @@ function normalizar(texto) {
     return texto ? texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : ""
 }
 
-const SERVICOS = {
-    desentupimento: [
-        "1 - Desentupimento de pia/lavatório",
-        "2 - Desentupimento de ralo/tanque",
-        "3 - Desentupimento de vaso sanitário",
-        "4 - Desentupimento coluna/rede principal",
-        "5 - Limpeza/desentupimento caixa de gordura",
-        "6 - Limpeza/desentupimento caixa de inspeção"
-    ],
-    reparos: [
-        "1 - Troca de torneira simples/filtro",
-        "2 - Instalação torneira monocomando/misturador",
-        "3 - Troca de engate flexível / niple",
-        "4 - Troca ou substituição de sifão",
-        "5 - Troca de válvula de escoamento (ralo)",
-        "6 - Reparo em válvula Hydra / Docol",
-        "7 - Troca mecanismo interno caixa acoplada",
-        "8 - Troca de bóia de caixa d'água",
-        "9 - Limpeza de caixa d'água"
-    ]
-}
-
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
 const question = (texto) => new Promise((resolve) => {
     if (!process.stdin.isTTY) {
+        console.log('⚠️ Ambiente sem terminal interativo. Aguardando conexão por sessão salva.');
         return resolve('');
     }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -78,23 +63,23 @@ const question = (texto) => new Promise((resolve) => {
     })
 })
 
-function respostaPorRegras(texto) {
-    const textNorm = normalizar(texto)
-
-    if (textNorm.includes('vazamento') || textNorm.includes('infiltracao') || textNorm.includes('cano')) {
-        return `💧 *Serviços de Vazamento:*\nAtendemos infiltrações, vazamentos em canos, torneiras e caixas d'água.\n\nDigite *1* para agendar uma visita técnica ou *0* para ver o menu.`
+async function responderComGemini(pergunta) {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: pergunta,
+            config: {
+                systemInstruction: `Você é o assistente virtual inteligente de uma empresa de encanadores profissionais que atende Itabuna, Ilhéus e Itapé. 
+Sua função é tirar dúvidas simples sobre hidráulica, vazamentos e desentupimentos com cordialidade, objetividade e clareza.
+Sempre lembre o cliente de que soluções definitivas devem ser feitas por um especialista.`
+            }
+        });
+        return response.text;
+    } catch (err) {
+        console.error('Erro na chamada do Gemini:', err);
+        return null;
     }
-    if (textNorm.includes('desentup') || textNorm.includes('pia') || textNorm.includes('ralo') || textNorm.includes('esgoto')) {
-        return `🚽 *Serviços de Desentupimento:*\nDesentupimos pias, ralos, vasos sanitários, caixas de gordura e rede principal.\n\nDigite *1* para solicitar atendimento ou *0* para ver o menu.`
-    }
-    if (textNorm.includes('preco') || textNorm.includes('valor') || textNorm.includes('quanto')) {
-        return `💰 *Valores & Visita:*\nTaxa de visita: R$ 50,00 (valor abatido no total caso o serviço seja aprovado!).\n\nDigite *1* para agendar ou *0* para ver o menu.`
-    }
-
-    return MENU_TEXTO
 }
-
-const MENU_TEXTO = `Olá! 👋 Bem-vindo ao atendimento do Encanador.\n\nEscolha uma opção digitando o número correspondente:\n\n1️⃣ *Solicitar Serviço / Agendar*\n2️⃣ *Orçamento Automático*\n3️⃣ *Tabela de Serviços por Categoria*\n4️⃣ *Regiões de Atendimento & Taxa de Visita*\n5️⃣ *Formas de Pagamento Aceitas*\n6️⃣ *Horário de Funcionamento*\n7️⃣ *Falar com Atendente*\n8️⃣ *Status do Atendimento / Reclamação*`
 
 async function ligarbot() {
     const { state, saveCreds } = await useMultiFileAuthState('./sessao')
@@ -110,6 +95,93 @@ async function ligarbot() {
 
     client.ev.on('creds.update', saveCreds)
 
+    // Função para enviar Lista Interativa (List Message)
+    async function enviarLista(from, title, text, buttonText, sections) {
+        const msg = generateWAMessageFromContent(from, {
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: proto.Message.InteractiveMessage.create({
+                        body: proto.Message.InteractiveMessage.Body.create({ text: text }),
+                        header: proto.Message.InteractiveMessage.Header.create({ title: title, hasMediaAttachment: false }),
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                            buttons: [
+                                {
+                                    name: "single_select",
+                                    buttonParamsJson: JSON.stringify({
+                                        title: buttonText,
+                                        sections: sections
+                                    })
+                                }
+                            ]
+                        })
+                    })
+                }
+            }
+        }, {})
+        await client.relayMessage(from, msg.message, { messageId: msg.key.id })
+    }
+
+    // Função para enviar Botões Interativos (Quick Reply Buttons)
+    async function enviarBotoes(from, text, buttons) {
+        const formatButtons = buttons.map(b => ({
+            name: "quick_reply",
+            buttonParamsJson: JSON.stringify({
+                display_text: b.displayText,
+                id: b.id
+            })
+        }))
+
+        const msg = generateWAMessageFromContent(from, {
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: proto.Message.InteractiveMessage.create({
+                        body: proto.Message.InteractiveMessage.Body.create({ text: text }),
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                            buttons: formatButtons
+                        })
+                    })
+                }
+            }
+        }, {})
+        await client.relayMessage(from, msg.message, { messageId: msg.key.id })
+    }
+
+    async function mostrarMenuPrincipal(from) {
+        const secoes = [
+            {
+                title: "Atendimento & Serviços",
+                rows: [
+                    { title: "Solicitar Serviço / Agendar", description: "Abra um novo chamado de atendimento", id: "op_1" },
+                    { title: "Orçamento Automático", description: "Consulte estimativas de preços", id: "op_2" },
+                    { title: "Tabela por Categoria", description: "Veja todos os nossos serviços", id: "op_3" }
+                ]
+            },
+            {
+                title: "Informações Geral",
+                rows: [
+                    { title: "Regiões & Taxa de Visita", description: "Cidades atendidas e custos", id: "op_4" },
+                    { title: "Formas de Pagamento", description: "Pix, cartões e dinheiro", id: "op_5" },
+                    { title: "Horário de Funcionamento", description: "Nossa disponibilidade", id: "op_6" }
+                ]
+            },
+            {
+                title: "Suporte",
+                rows: [
+                    { title: "Falar com Atendente", description: "Conversar com equipe humana", id: "op_7" },
+                    { title: "Status do Atendimento", description: "Consultar protocolo ou reclamação", id: "op_8" }
+                ]
+            }
+        ]
+
+        await enviarLista(
+            from,
+            "👋 Atendimento do Encanador",
+            "Seja bem-vindo! Clique no botão abaixo para abrir a lista de opções disponíveis:",
+            "Ver Opções",
+            secoes
+        )
+    }
+
     client.ev.on('messages.upsert', async ({ messages }) => {
         try {
             const info = messages[0]
@@ -121,14 +193,25 @@ async function ligarbot() {
 
             await client.readMessages([{ remoteJid: from, id: info.key.id, participant: info.key.participant }])
 
-            const altpdf = Object.keys(info.message)
-            const type = altpdf[0] === 'senderKeyDistributionMessage' ? altpdf[1] === 'messageContextInfo' ? altpdf[2] : altpdf[1] : altpdf[0]
+            // Captura o texto ou a resposta de botões/listas interativas
+            let text = ""
+            if (info.message.conversation) {
+                text = info.message.conversation
+            } else if (info.message.extendedTextMessage) {
+                text = info.message.extendedTextMessage.text
+            } else if (info.message.interactiveResponseMessage) {
+                const params = JSON.parse(info.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson)
+                text = params.id || params.text
+            } else if (info.message.buttonsResponseMessage) {
+                text = info.message.buttonsResponseMessage.selectedButtonId
+            } else if (info.message.listResponseMessage) {
+                text = info.message.listResponseMessage.singleSelectReply.selectedRowId
+            }
 
-            const texto_exato = (type === 'conversation') ? info.message.conversation : (type === 'extendedTextMessage') ? info.message.extendedTextMessage.text : (type === 'imageMessage') ? info.message.imageMessage.caption : ''
-            const text = texto_exato.trim()
             const textNorm = normalizar(text)
-
             if (!text) return
+
+            console.log(`📩 Mensagem recebida de [${from}]: "${text}"`)
 
             async function escrever(mensagem) {
                 await client.sendPresenceUpdate('composing', from) 
@@ -140,129 +223,115 @@ async function ligarbot() {
             if (!userData[from]) userData[from] = {}
 
             const estadoAtual = userState[from]
-            const rodapeNavegacao = `\n\n─────────────────\n↩️ *9* - Voltar à Pergunta Anterior\n🏠 *0* - Voltar ao Menu Principal`
+            const rodapeNavegacao = `\n\n─────────────────\n↩️ Digite *0* a qualquer momento para voltar ao Menu.`
 
             if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm === 'inicio') && estadoAtual !== 'inicio') {
                 userState[from] = 'inicio'
                 delete userData[from]
-                await escrever(MENU_TEXTO)
+                await mostrarMenuPrincipal(from)
                 return
             }
 
-            // --- MENU PRINCIPAL ---
             if (estadoAtual === 'inicio') {
-                if (text === '1' || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
-                    userState[from] = 'pedir_nome'
-                    await escrever('📋 *Abertura de Chamado*\n\nPara começar, por favor digite o seu *Nome Completo*:' + rodapeNavegacao)
-                } else if (text === '2' || textNorm.includes('orcamento')) {
+                if (text === '1' || text === 'op_1' || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
+                    userState[from] = 'chamado_nome'
+                    await escrever('📋 *Abertura de Chamado*\n\nPara iniciarmos, por favor digite o seu *Nome completo*:' + rodapeNavegacao)
+                } else if (text === '2' || text === 'op_2' || textNorm.includes('orcamento')) {
                     userState[from] = 'orcamento_categoria'
-                    const introOrcamento = `📊 *Orçamento Automático*\n\nSelecione a categoria do serviço desejado:\n\n1️⃣ *Vazamentos*\n2️⃣ *Desentupimentos*\n3️⃣ *Reparo / Manutenção*` + rodapeNavegacao
-                    await escrever(introOrcamento)
-                } else if (text === '3' || textNorm.includes('tabela')) {
-                    userState[from] = 'orcamento_categoria'
-                    const menuPrecos = `🛠️ *Lista de Serviços por Categoria*\n\nEscolha qual categoria de serviço você deseja consultar:\n\n1️⃣ *Vazamentos*\n2️⃣ *Desentupimentos*\n3️⃣ *Reparo / Manutenção*` + rodapeNavegacao
-                    await escrever(menuPrecos)
-                } else if (text === '4' || textNorm.includes('regiao')) {
-                    await escrever(`📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (abatido caso o serviço seja aprovado!).\n\nDigite *1* para solicitar chamado ou *0* para voltar.`)
-                } else if (text === '5' || textNorm.includes('pagamento')) {
-                    await escrever(`💳 *Formas de Pagamento:* Pix, Cartão de Crédito/Débito e Dinheiro.\n\nDigite *1* para solicitar chamado ou *0* para voltar.`)
-                } else if (text === '6' || textNorm.includes('horario')) {
-                    await escrever(`⏰ *Horário:* Segunda a Sexta, das 08h às 18h.\n\nDigite *1* para solicitar chamado ou *0* para voltar.`)
-                } else if (text === '7' || textNorm.includes('atendente')) {
-                    userState[from] = 'pedir_nome'
-                    await escrever('📞 *Atendimento Humano*\n\nPor favor, digite o seu *Nome Completo*:' + rodapeNavegacao)
+                    await enviarLista(
+                        from,
+                        "📊 Orçamento Automático",
+                        "Selecione qual categoria de serviço você deseja consultar:",
+                        "Selecionar Categoria",
+                        [{
+                            title: "Categorias",
+                            rows: [
+                                { title: "Vazamentos", description: "Caça vazamentos e infiltrações", id: "cat_vazamentos" },
+                                { title: "Desentupimentos", description: "Pias, ralos e esgoto", id: "cat_desentupimento" },
+                                { title: "Reparo / Manutenção", description: "Torneiras, caixas e válvulas", id: "cat_reparos" }
+                            ]
+                        }]
+                    )
+                } else if (text === '3' || text === 'op_3' || textNorm.includes('tabela')) {
+                    userState[from] = 'tabela_categoria'
+                    await enviarLista(
+                        from,
+                        "🛠️ Tabela de Serviços",
+                        "Escolha a categoria para visualizar a lista completa:",
+                        "Ver Categorias",
+                        [{
+                            title: "Categorias",
+                            rows: [
+                                { title: "Desentupimentos", description: "Lista completa de serviços", id: "tab_desentupimento" },
+                                { title: "Reparos e Trocas", description: "Lista completa de serviços", id: "tab_reparos" }
+                            ]
+                        }]
+                    )
+                } else if (text === '4' || text === 'op_4' || textNorm.includes('regiao')) {
+                    const regioes = `📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos exclusivamente em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (Valor abatido no total caso o serviço seja aprovado!).`
+                    await escrever(regioes)
+                    await enviarBotoes(from, "Como deseja prosseguir?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+                } else if (text === '5' || text === 'op_5' || textNorm.includes('pagamento')) {
+                    const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro em espécie`
+                    await escrever(pagamentos)
+                    await enviarBotoes(from, "Como deseja prosseguir?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+                } else if (text === '6' || text === 'op_6' || textNorm.includes('horario')) {
+                    const horarios = `⏰ *Horário de Atendimento:*\n\nAtendemos de Segunda a Sexta-feira, das 08h às 18h.`
+                    await escrever(horarios)
+                    await enviarBotoes(from, "Como deseja prosseguir?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+                } else if (text === '7' || text === 'op_7' || textNorm.includes('atendente')) {
+                    userState[from] = 'atendente_nome'
+                    await escrever('📞 *Atendimento Humano*\n\nPara encaminharmos você a um especialista, por favor digite seu *Nome completo*:' + rodapeNavegacao)
+                } else if (text === '8' || text === 'op_8' || textNorm.includes('status') || textNorm.includes('reclamacao')) {
+                    userState[from] = 'reclamacao_nome'
+                    await escrever('🔍 *Consulta de Status / Reclamação*\n\nPor favor, informe o seu *Nome completo*:' + rodapeNavegacao)
                 } else {
-                    const resposta = respostaPorRegras(text)
-                    await escrever(resposta)
+                    const respostaAI = await responderComGemini(text)
+                    if (respostaAI) {
+                        await escrever(respostaAI)
+                    }
+                    await mostrarMenuPrincipal(from)
                 }
             }
 
-            // --- FLUXO DE SELEÇÃO DE CATEGORIA DE ORÇAMENTO ---
-            else if (estadoAtual === 'orcamento_categoria') {
-                if (text === '1') {
-                    userData[from].categoria = 'Vazamentos'
-                    userState[from] = 'pedir_nome'
-                    await escrever('🔎 *Categoria: Vazamentos*\n\nPara dar início, por favor informe o seu *Nome Completo*:' + rodapeNavegacao)
-                } else if (text === '2') {
-                    userData[from].categoria = 'Desentupimentos'
-                    userState[from] = 'pedir_nome'
-                    await escrever('🚽 *Categoria: Desentupimentos*\n\nPara dar início, por favor informe o seu *Nome Completo*:' + rodapeNavegacao)
-                } else if (text === '3') {
-                    userData[from].categoria = 'Reparo / Manutenção'
-                    userState[from] = 'pedir_nome'
-                    await escrever('🔧 *Categoria: Reparo / Manutenção*\n\nPara dar início, por favor informe o seu *Nome Completo*:' + rodapeNavegacao)
-                } else {
-                    await escrever('⚠️ Opção inválida. Escolha 1, 2 ou 3:' + rodapeNavegacao)
-                }
-            }
-
-            // --- PASSO 1: NOME DO CLIENTE ---
-            else if (estadoAtual === 'pedir_nome') {
-                if (text === '9') { userState[from] = 'inicio'; await escrever(MENU_TEXTO); return; }
+            else if (estadoAtual === 'chamado_nome') {
+                if (text === '0' || textNorm === 'voltar') { userState[from] = 'inicio'; await mostrarMenuPrincipal(from); return; }
                 userData[from].nome = text
-                userState[from] = 'pedir_problema'
-
-                let msgProblema = `Prazer, *${text}*! 👋\n\n`
-                if (userData[from].categoria === 'Vazamentos') {
-                    msgProblema += `Por favor, *descreva o tipo de vazamento* que está ocorrendo (ex: infiltração na parede, vazamento no cano, torneira pingando):`
-                } else if (userData[from].categoria === 'Desentupimentos') {
-                    msgProblema += `Por favor, escolha ou descreva o problema de desentupimento:\n\n${SERVICOS.desentupimento.join('\n')}\n\n*Ou descreva com suas palavras:*`
-                } else if (userData[from].categoria === 'Reparo / Manutenção') {
-                    msgProblema += `Por favor, escolha ou descreva o serviço necessário:\n\n${SERVICOS.reparos.join('\n')}\n\n*Ou descreva com suas palavras:*`
-                } else {
-                    msgProblema += `Por favor, *descreva em detalhes qual é o problema* ou serviço que você precisa:`
-                }
-
-                await escrever(msgProblema + rodapeNavegacao)
+                userState[from] = 'chamado_telefone'
+                await escrever(`Prazer, *${text}*! 👋\n\nAgora, digite o seu *Telefone para Contato/WhatsApp* (com DDD):` + rodapeNavegacao)
             }
-
-            // --- PASSO 2: DESCRIÇÃO DO PROBLEMA ---
-            else if (estadoAtual === 'pedir_problema') {
-                if (text === '9') { 
-                    userState[from] = 'pedir_nome'
-                    await escrever('Por favor, informe o seu *Nome Completo*:' + rodapeNavegacao)
-                    return
-                }
-                userData[from].detalhes = text
-                userState[from] = 'pedir_telefone'
-                await escrever('📱 Perfeito! Agora digite o seu *Telefone/WhatsApp para contato* (com DDD):' + rodapeNavegacao)
-            }
-
-            // --- PASSO 3: TELEFONE ---
-            else if (estadoAtual === 'pedir_telefone') {
-                if (text === '9') { 
-                    userState[from] = 'pedir_problema'
-                    await escrever('Por favor, descreva novamente o tipo de problema:' + rodapeNavegacao)
-                    return
-                }
+            else if (estadoAtual === 'chamado_telefone') {
                 userData[from].telefone = text
-                userState[from] = 'pedir_endereco'
-                await escrever('📍 Excelente! Por fim, informe o seu *Endereço Completo* (Rua, Número, Bairro e Cidade):' + rodapeNavegacao)
+                userState[from] = 'chamado_endereco'
+                await escrever('📍 Perfeito! Agora, digite o seu *Endereço completo* (Rua, Número, Bairro):' + rodapeNavegacao)
             }
-
-            // --- PASSO 4: ENDEREÇO & FINALIZAÇÃO ---
-            else if (estadoAtual === 'pedir_endereco') {
-                if (text === '9') {
-                    userState[from] = 'pedir_telefone'
-                    await escrever('Digite o seu *Telefone/WhatsApp para contato* (com DDD):' + rodapeNavegacao)
-                    return
-                }
+            else if (estadoAtual === 'chamado_endereco') {
                 userData[from].endereco = text
-
+                userState[from] = 'chamado_detalhes'
+                await escrever('📝 Descreva brevemente o problema ou o serviço que você precisa:' + rodapeNavegacao)
+            }
+            else if (estadoAtual === 'chamado_detalhes') {
+                userData[from].detalhes = text
                 const protocolo = gerarProtocolo()
                 salvarChamado(protocolo, {
-                    categoria: userData[from].categoria || 'Geral',
+                    tipo: 'servico',
                     nome: userData[from].nome,
                     telefone: userData[from].telefone,
                     endereco: userData[from].endereco,
                     detalhes: userData[from].detalhes
                 })
-
-                const resumoChamado = `📝 *CHAMADO REGISTRADO COM SUCESSO!*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📂 *Categoria:* ${userData[from].categoria || 'Geral'}\n🛠️ *Descrição:* ${userData[from].detalhes}\n📞 *Telefone:* ${userData[from].telefone}\n📍 *Endereço:* ${userData[from].endereco}`
-                
+                const resumoChamado = `🚨 *NOVO CHAMADO REGISTRADO*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${userData[from].telefone}\n🏠 *Endereço:* ${userData[from].endereco}\n📝 *Detalhes:* ${userData[from].detalhes}`
                 await escrever(resumoChamado)
-                await escrever(`✅ Obrigado, *${userData[from].nome}*! O seu chamado foi gerado. Um técnico entrará em contato em breve.`)
-
+                await escrever(`✅ *Chamado #${protocolo} registrado com sucesso!* Um de nossos técnicos entrará em contato em instantes.`)
                 delete userState[from]
                 delete userData[from]
             }
@@ -277,15 +346,15 @@ async function ligarbot() {
 
         if (qr && !client.authState.creds.registered && !jaPareou) {
             jaPareou = true
-            const Pergunta = await question('Por favor, diga seu número (ex: 5573981070937):\n')
+            const Pergunta = await question('Por Favor Me diga Seu número (ex: 5573981070937):\n')
             const Numero = Pergunta.replace(/[^0-9]/g, '')
             let codigo = await client.requestPairingCode(Numero)
             codigo = codigo?.match(/.{1,4}/g)?.join("-") || codigo
-            console.log(`🔑 Código de Pareamento: ${codigo}`)
+            console.log(`🔑 Codigo de Pareamento: ${codigo}`)
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado e atualizado!')
+            console.log('✅ Bot conectado com sucesso com suporte a Listas e Botoes Interativos!')
         }
         
         if (connection === 'close') {
