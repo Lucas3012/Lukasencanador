@@ -335,15 +335,31 @@ async function ligarbot() {
                 }
             }
 
-            // Tratamento da seleção de categorias da tabela
+            // Tratamento das categorias com 20 serviços em cada
             else if (estadoAtual === 'tabela_categoria') {
                 if (text === 'tab_vazamentos' || textNorm.includes('vazamento')) {
-                    const listaVazamentos = `🔍 *Lista de Serviços - Vazamentos*\n\n` +
-                        `• Detector Eletrônico / Caça-Vazamento não visível\n` +
-                        `• Reparo de Vazamento em Tubulação de Água Fria/Quente\n` +
-                        `• Detecção e Localização de Infiltração em Paredes e Pisos\n` +
-                        `• Reparo de Infiltração em Sanitários e Encanamentos\n` +
-                        `• Troca de Canos com Vazamento`
+                    const listaVazamentos = `🔍 *Lista de Serviços - Vazamentos (20 Opções):*\n\n` +
+                        `1. Caça-vazamento não visível com Geofone\n` +
+                        `2. Detecção de vazamento por Termografia (Câmera Térmica)\n` +
+                        `3. Localização de vazamento em tubulações presas na parede\n` +
+                        `4. Reparo de vazamento em cano de água fria (PVC/PPR)\n` +
+                        `5. Reparo de vazamento em tubulação de água quente (Cobre/PEX)\n` +
+                        `6. Diagnóstico de infiltração em lajes e teto\n` +
+                        `7. Reparo de vazamento de esgoto subterrâneo\n` +
+                        `8. Identificação de vazamento em caixa d'água\n` +
+                        `9. Conserto de vazamento no vaso sanitário/acoplado\n` +
+                        `10. Reparo de vazamento em válvula de descarga Hydra/Docol\n` +
+                        `11. Eliminador de vazamento em sifão de pia/tanque\n` +
+                        `12. Reparo de vazamento no registro geral\n` +
+                        `13. Correção de infiltração ao redor do ralo do box\n` +
+                        `14. Eliminação de vazamento em chuveiro/ducha\n` +
+                        `15. Reparo em vazamento de coluna do prédio/condomínio\n` +
+                        `16. Detecção de vazamento em piscina\n` +
+                        `17. Teste de estanqueidade e pressão da rede de água\n` +
+                        `18. Reparo de vazamento em flexíveis e engates\n` +
+                        `19. Vedação contra vazamentos de torneiras de parede\n` +
+                        `20. Teste de pressurização e teste de vazão de água`
+
                     await escrever(listaVazamentos)
                     userState[from] = 'inicio'
                     await enviarBotoes(from, "Deseja agendar um atendimento para este serviço?", [
@@ -352,12 +368,28 @@ async function ligarbot() {
                     ])
 
                 } else if (text === 'tab_desentupimento' || textNorm.includes('desentupimento')) {
-                    const listaDesentupimento = `🌀 *Lista de Serviços - Desentupimentos*\n\n` +
-                        `• Desentupimento de Pias e Tanques\n` +
-                        `• Desentupimento de Vasos Sanitários\n` +
-                        `• Desentupimento de Ralos e Grelhas\n` +
-                        `• Desentupimento de Redes de Esgoto\n` +
-                        `• Limpeza e Desentupimento de Caixas de Gordura`
+                    const listaDesentupimento = `🌀 *Lista de Serviços - Desentupimentos (20 Opções):*\n\n` +
+                        `1. Desentupimento de pia de cozinha\n` +
+                        `2. Desentupimento de vaso sanitário\n` +
+                        `3. Desentupimento de ralo de banheiro / box\n` +
+                        `4. Desentupimento de ralo de lavanderia / quintal\n` +
+                        `5. Desentupimento de caixa de gordura\n` +
+                        `6. Desentupimento de caixa de inspeção de esgoto\n` +
+                        `7. Desentupimento de rede geral de esgoto\n` +
+                        `8. Desentupimento de coluna predial de esgoto\n` +
+                        `9. Desentupimento de tanques\n` +
+                        `10. Desentupimento de calhas e condutores\n` +
+                        `11. Desentupimento de mictórios\n` +
+                        `12. Desentupimento mecanizado com Roto-Rooter (K-50/K-500)\n` +
+                        `13. Desentupimento por Hidrojateamento de alta pressão\n` +
+                        `14. Desobstrução de tubulação pluvial (água da chuva)\n` +
+                        `15. Remoção de gordura e resíduos solidificados em tubos\n` +
+                        `16. Desentupimento de encanamento de lavadora de roupas\n` +
+                        `17. Limpeza e raspagem interna de tubulações obstruídas\n` +
+                        `18. Retirada de objetos estranhos do vaso ou canos\n` +
+                        `19. Desentupimento preventiva em condomínios e estabelecimentos\n` +
+                        `20. Inspeção por vídeo de rede de esgoto obstruída`
+
                     await escrever(listaDesentupimento)
                     userState[from] = 'inicio'
                     await enviarBotoes(from, "Deseja agendar um atendimento para este serviço?", [
@@ -366,12 +398,28 @@ async function ligarbot() {
                     ])
 
                 } else if (text === 'tab_reparos' || textNorm.includes('reparo') || textNorm.includes('manutencao')) {
-                    const listaReparos = `🛠️ *Lista de Serviços - Reparo / Manutenção*\n\n` +
-                        `• Troca ou Reparo de Torneiras, Misturadores e Registros\n` +
-                        `• Reparo e Instalação de Caixa D'Água e Boias\n` +
-                        `• Manutenção de Válvulas de Descarga (Hydra, Docol, etc.)\n` +
-                        `• Instalação de Louças Sanitárias e Pias\n` +
-                        `• Troca de Sifões, Engates e Vedações`
+                    const listaReparos = `🛠️ *Lista de Serviços - Reparo / Manutenção (20 Opções):*\n\n` +
+                        `1. Troca de reparo de válvula de descarga (Hydra, Docol, Deca)\n` +
+                        `2. Troca de reparo / vedante de torneira e misturador\n` +
+                        `3. Substituição e instalação de novas torneiras\n` +
+                        `4. Instalação e manutenção de caixa d'água\n` +
+                        `5. Troca de boia Mecânica ou Elétrica de caixa d'água\n` +
+                        `6. Instalação / Troca de Filtros e Purificadores de Água\n` +
+                        `7. Substituição de Sifões em pias, tanques e pias duplas\n` +
+                        `8. Instalação e reparo de pressurizador de água\n` +
+                        `9. Instalação de vaso sanitário (com caixa acoplada ou convencional)\n` +
+                        `10. Troca de mecanismo interno de caixa acoplada\n` +
+                        `11. Instalação de duchas higiênicas e engates flexíveis\n` +
+                        `12. Troca de registros de pressão (chuveiro) e gaveta (geral)\n` +
+                        `13. Instalação e substituição de chuveiros e duchaselétricas\n` +
+                        `14. Troca de anel de vedação de vaso sanitário (combate ao mau cheiro)\n` +
+                        `15. Instalação e manutenção de triturador de pia de cozinha\n` +
+                        `16. Instalação e adequação de pontos de água para máquina de lavar\n` +
+                        `17. Substituição de tubulações antigas de ferro/galvanizado por PVC/PPR\n` +
+                        `18. Regulagem e manutenção de aquecedores a gás / elétricos\n` +
+                        `19. Troca e manutenção de ralos "click" e grelhas inox\n` +
+                        `20. Instalação de válvula de retenção de esgoto (anti-retorno/anti-pragas)`
+
                     await escrever(listaReparos)
                     userState[from] = 'inicio'
                     await enviarBotoes(from, "Deseja agendar um atendimento para este serviço?", [
