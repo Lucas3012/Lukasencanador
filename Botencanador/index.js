@@ -250,7 +250,7 @@ async function ligarbot() {
                 
                 // Orçamento
                 } else if (text === '2' || text === 'op_2' || textNorm.includes('orcamento')) {
-                    userState[from] = 'orcamento_categoria'
+                    userState[from] = 'tabela_categoria'
                     await enviarLista(
                         from,
                         "📊 Orçamento Automático",
@@ -259,14 +259,14 @@ async function ligarbot() {
                         [{
                             title: "Categorias",
                             rows: [
-                                { title: "Vazamentos", description: "Caça vazamentos e infiltrações", id: "cat_vazamentos" },
-                                { title: "Desentupimentos", description: "Pias, ralos e esgoto", id: "cat_desentupimento" },
-                                { title: "Reparo / Manutenção", description: "Torneiras, caixas e válvulas", id: "cat_reparos" }
+                                { title: "Vazamentos", description: "Caça vazamentos e infiltrações", id: "tab_vazamentos" },
+                                { title: "Desentupimentos", description: "Pias, ralos e esgoto", id: "tab_desentupimento" },
+                                { title: "Reparo / Manutenção", description: "Torneiras, caixas e válvulas", id: "tab_reparos" }
                             ]
                         }]
                     )
 
-                // Tabela de Serviços
+                // Tabela de Serviços por Categoria
                 } else if (text === '3' || text === 'op_3' || textNorm.includes('tabela')) {
                     userState[from] = 'tabela_categoria'
                     await enviarLista(
@@ -277,8 +277,9 @@ async function ligarbot() {
                         [{
                             title: "Categorias",
                             rows: [
-                                { title: "Desentupimentos", description: "Lista completa de serviços", id: "tab_desentupimento" },
-                                { title: "Reparos e Trocas", description: "Lista completa de serviços", id: "tab_reparos" }
+                                { title: "Vazamentos", description: "Caça vazamentos e infiltrações", id: "tab_vazamentos" },
+                                { title: "Desentupimentos", description: "Pias, ralos, vasos e esgoto", id: "tab_desentupimento" },
+                                { title: "Reparo / Manutenção", description: "Torneiras, caixas d'água e válvulas", id: "tab_reparos" }
                             ]
                         }]
                     )
@@ -330,6 +331,55 @@ async function ligarbot() {
                     if (respostaAI) {
                         await escrever(respostaAI)
                     }
+                    await mostrarMenuPrincipal(from)
+                }
+            }
+
+            // Tratamento da seleção de categorias da tabela
+            else if (estadoAtual === 'tabela_categoria') {
+                if (text === 'tab_vazamentos' || textNorm.includes('vazamento')) {
+                    const listaVazamentos = `🔍 *Lista de Serviços - Vazamentos*\n\n` +
+                        `• Detector Eletrônico / Caça-Vazamento não visível\n` +
+                        `• Reparo de Vazamento em Tubulação de Água Fria/Quente\n` +
+                        `• Detecção e Localização de Infiltração em Paredes e Pisos\n` +
+                        `• Reparo de Infiltração em Sanitários e Encanamentos\n` +
+                        `• Troca de Canos com Vazamento`
+                    await escrever(listaVazamentos)
+                    userState[from] = 'inicio'
+                    await enviarBotoes(from, "Deseja agendar um atendimento para este serviço?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+
+                } else if (text === 'tab_desentupimento' || textNorm.includes('desentupimento')) {
+                    const listaDesentupimento = `🌀 *Lista de Serviços - Desentupimentos*\n\n` +
+                        `• Desentupimento de Pias e Tanques\n` +
+                        `• Desentupimento de Vasos Sanitários\n` +
+                        `• Desentupimento de Ralos e Grelhas\n` +
+                        `• Desentupimento de Redes de Esgoto\n` +
+                        `• Limpeza e Desentupimento de Caixas de Gordura`
+                    await escrever(listaDesentupimento)
+                    userState[from] = 'inicio'
+                    await enviarBotoes(from, "Deseja agendar um atendimento para este serviço?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+
+                } else if (text === 'tab_reparos' || textNorm.includes('reparo') || textNorm.includes('manutencao')) {
+                    const listaReparos = `🛠️ *Lista de Serviços - Reparo / Manutenção*\n\n` +
+                        `• Troca ou Reparo de Torneiras, Misturadores e Registros\n` +
+                        `• Reparo e Instalação de Caixa D'Água e Boias\n` +
+                        `• Manutenção de Válvulas de Descarga (Hydra, Docol, etc.)\n` +
+                        `• Instalação de Louças Sanitárias e Pias\n` +
+                        `• Troca de Sifões, Engates e Vedações`
+                    await escrever(listaReparos)
+                    userState[from] = 'inicio'
+                    await enviarBotoes(from, "Deseja agendar um atendimento para este serviço?", [
+                        { displayText: "📋 Registrar Chamado", id: "op_1" },
+                        { displayText: "🏠 Menu Principal", id: "menu" }
+                    ])
+                } else {
+                    userState[from] = 'inicio'
                     await mostrarMenuPrincipal(from)
                 }
             }
