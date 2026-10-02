@@ -6,7 +6,7 @@ const fs = require('fs')
 const path = require('path')
 
 // Configuração da API do Gemini
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'SUA_CHAVE_API_GEMINI_AQUI'
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
 let jaPareou = false
@@ -46,7 +46,7 @@ const userData = {}
 const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
 
 function normalizar(texto) {
-    return texto ? texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : ""
+    return texto ? texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "").trim() : ""
 }
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
@@ -64,6 +64,7 @@ const question = (texto) => new Promise((resolve) => {
 })
 
 async function responderComGemini(pergunta) {
+    if (!GEMINI_API_KEY) return null
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -193,25 +194,33 @@ async function ligarbot() {
 
             await client.readMessages([{ remoteJid: from, id: info.key.id, participant: info.key.participant }])
 
-            // Captura o texto ou a resposta de botões/listas interativas
+            // Captura avançada do texto e botões no WhatsApp
             let text = ""
-            if (info.message.conversation) {
-                text = info.message.conversation
-            } else if (info.message.extendedTextMessage) {
-                text = info.message.extendedTextMessage.text
-            } else if (info.message.interactiveResponseMessage) {
-                const params = JSON.parse(info.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson)
-                text = params.id || params.text
-            } else if (info.message.buttonsResponseMessage) {
-                text = info.message.buttonsResponseMessage.selectedButtonId
-            } else if (info.message.listResponseMessage) {
-                text = info.message.listResponseMessage.singleSelectReply.selectedRowId
+            const msg = info.message
+
+            if (msg.conversation) {
+                text = msg.conversation
+            } else if (msg.extendedTextMessage?.text) {
+                text = msg.extendedTextMessage.text
+            } else if (msg.interactiveResponseMessage) {
+                try {
+                    const params = JSON.parse(msg.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson)
+                    text = params.id || params.text || ""
+                } catch (e) {
+                    text = msg.interactiveResponseMessage.body?.text || ""
+                }
+            } else if (msg.templateButtonReplyMessage) {
+                text = msg.templateButtonReplyMessage.selectedId || msg.templateButtonReplyMessage.selectedDisplayText || ""
+            } else if (msg.buttonsResponseMessage) {
+                text = msg.buttonsResponseMessage.selectedButtonId || msg.buttonsResponseMessage.selectedButtonDisplayText || ""
+            } else if (msg.listResponseMessage) {
+                text = msg.listResponseMessage.singleSelectReply?.selectedRowId || ""
             }
 
             const textNorm = normalizar(text)
             if (!text) return
 
-            console.log(`📩 Mensagem recebida de [${from}]: "${text}"`)
+            console.log(`📩 Mensagem recebida de [${from}]: "${text}" (Norm: "${textNorm}")`)
 
             async function escrever(mensagem) {
                 await client.sendPresenceUpdate('composing', from) 
@@ -225,7 +234,8 @@ async function ligarbot() {
             const estadoAtual = userState[from]
             const rodapeNavegacao = `\n\n─────────────────\n↩️ Digite *0* a qualquer momento para voltar ao Menu.`
 
-            if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm === 'inicio') && estadoAtual !== 'inicio') {
+            // Ação de Voltar ao Menu
+            if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm.includes('menu principal')) && estadoAtual !== 'inicio') {
                 userState[from] = 'inicio'
                 delete userData[from]
                 await mostrarMenuPrincipal(from)
@@ -233,9 +243,12 @@ async function ligarbot() {
             }
 
             if (estadoAtual === 'inicio') {
-                if (text === '1' || text === 'op_1' || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
+                // Registrar Chamado / Agendar
+                if (text === '1' || text === 'op_1' || textNorm.includes('registrar chamado') || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
                     userState[from] = 'chamado_nome'
                     await escrever('📋 *Abertura de Chamado*\n\nPara iniciarmos, por favor digite o seu *Nome completo*:' + rodapeNavegacao)
+                
+                // Orçamento
                 } else if (text === '2' || text === 'op_2' || textNorm.includes('orcamento')) {
                     userState[from] = 'orcamento_categoria'
                     await enviarLista(
@@ -252,6 +265,8 @@ async function ligarbot() {
                             ]
                         }]
                     )
+
+                // Tabela de Serviços
                 } else if (text === '3' || text === 'op_3' || textNorm.includes('tabela')) {
                     userState[from] = 'tabela_categoria'
                     await enviarLista(
@@ -267,6 +282,8 @@ async function ligarbot() {
                             ]
                         }]
                     )
+
+                // Regiões
                 } else if (text === '4' || text === 'op_4' || textNorm.includes('regiao')) {
                     const regioes = `📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos exclusivamente em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (Valor abatido no total caso o serviço seja aprovado!).`
                     await escrever(regioes)
@@ -274,6 +291,8 @@ async function ligarbot() {
                         { displayText: "📋 Registrar Chamado", id: "op_1" },
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
+
+                // Pagamento
                 } else if (text === '5' || text === 'op_5' || textNorm.includes('pagamento')) {
                     const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro em espécie`
                     await escrever(pagamentos)
@@ -281,6 +300,8 @@ async function ligarbot() {
                         { displayText: "📋 Registrar Chamado", id: "op_1" },
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
+
+                // Horário
                 } else if (text === '6' || text === 'op_6' || textNorm.includes('horario')) {
                     const horarios = `⏰ *Horário de Atendimento:*\n\nAtendemos de Segunda a Sexta-feira, das 08h às 18h.`
                     await escrever(horarios)
@@ -288,12 +309,22 @@ async function ligarbot() {
                         { displayText: "📋 Registrar Chamado", id: "op_1" },
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
+
+                // Atendente
                 } else if (text === '7' || text === 'op_7' || textNorm.includes('atendente')) {
                     userState[from] = 'atendente_nome'
                     await escrever('📞 *Atendimento Humano*\n\nPara encaminharmos você a um especialista, por favor digite seu *Nome completo*:' + rodapeNavegacao)
+
+                // Status / Reclamação
                 } else if (text === '8' || text === 'op_8' || textNorm.includes('status') || textNorm.includes('reclamacao')) {
                     userState[from] = 'reclamacao_nome'
                     await escrever('🔍 *Consulta de Status / Reclamação*\n\nPor favor, informe o seu *Nome completo*:' + rodapeNavegacao)
+
+                // Menu Principal por texto
+                } else if (textNorm === 'menu' || textNorm.includes('menu principal')) {
+                    await mostrarMenuPrincipal(from)
+
+                // Resposta IA ou Menu padrão
                 } else {
                     const respostaAI = await responderComGemini(text)
                     if (respostaAI) {
