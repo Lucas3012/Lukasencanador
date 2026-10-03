@@ -1,9 +1,14 @@
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, Browsers, DisconnectReason, generateWAMessageFromContent, proto } = require('@itsliaaa/baileys')
+const { default: makeWASocket, fetchLatestBaileysVersion, Browsers, DisconnectReason, generateWAMessageFromContent, proto } = require('@itsliaaa/baileys')
 const { GoogleGenAI } = require('@google/genai')
+const useMongoDBAuthState = require('baileys-mongo')
+const mongoose = require('mongoose')
 const pino = require('pino')
 const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
+
+// URI do MongoDB Atlas
+const MONGO_URI = process.env.MONGO_URI || ''
 
 // Configuração da API do Gemini
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
@@ -11,7 +16,7 @@ const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
 
 // Código do convite do grupo de transbordo/chamados
 const LINK_CONVITE_GRUPO = 'EwUIug1DbI3IWZGkpbrJ8n' 
-let ID_GRUPO_NOTIFICACAO = null // Será descoberto automaticamente ao iniciar
+let ID_GRUPO_NOTIFICACAO = null
 
 let jaPareou = false
 
@@ -57,7 +62,7 @@ const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
 const question = (texto) => new Promise((resolve) => {
     if (!process.stdin.isTTY) {
-        console.log('⚠️ Ambiente sem terminal interativo. Aguardando conexão por sessão salva.');
+        console.log('⚠️ Ambiente sem terminal interativo. Aguardando conexão por sessão salva no MongoDB.');
         return resolve('');
     }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -87,7 +92,22 @@ Sempre lembre o cliente de que soluções definitivas devem ser feitas por um es
 }
 
 async function ligarbot() {
-    const { state, saveCreds } = await useMultiFileAuthState('./sessao')
+    let state, saveCreds;
+
+    if (MONGO_URI) {
+        console.log('🍃 Conectando ao MongoDB Atlas para recuperar/salvar sessão...');
+        await mongoose.connect(MONGO_URI);
+        const auth = await useMongoDBAuthState(mongoose.connection.collection('baileys_auth'));
+        state = auth.state;
+        saveCreds = auth.saveCreds;
+    } else {
+        console.log('⚠️ MONGO_URI não definida! Usando pasta local temporária...');
+        const { useMultiFileAuthState } = require('@itsliaaa/baileys');
+        const localAuth = await useMultiFileAuthState('./sessao');
+        state = localAuth.state;
+        saveCreds = localAuth.saveCreds;
+    }
+
     const { version } = await fetchLatestBaileysVersion()
     
     const client = makeWASocket({
@@ -100,7 +120,6 @@ async function ligarbot() {
 
     client.ev.on('creds.update', saveCreds)
 
-    // Função para enviar Lista Interativa (List Message)
     async function enviarLista(from, title, text, buttonText, sections) {
         const msg = generateWAMessageFromContent(from, {
             viewOnceMessage: {
@@ -126,7 +145,6 @@ async function ligarbot() {
         await client.relayMessage(from, msg.message, { messageId: msg.key.id })
     }
 
-    // Função para enviar Botões Interativos (Quick Reply Buttons)
     async function enviarBotoes(from, text, buttons) {
         const formatButtons = buttons.map(b => ({
             name: "quick_reply",
@@ -198,7 +216,6 @@ async function ligarbot() {
 
             await client.readMessages([{ remoteJid: from, id: info.key.id, participant: info.key.participant }])
 
-            // Captura avançada do texto e botões no WhatsApp
             let text = ""
             const msg = info.message
 
@@ -238,7 +255,6 @@ async function ligarbot() {
             const estadoAtual = userState[from]
             const rodapeNavegacao = `\n\n─────────────────\n↩️ Digite *0* a qualquer momento para voltar ao Menu.`
 
-            // Ação de Voltar ao Menu
             if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm.includes('menu principal')) && estadoAtual !== 'inicio') {
                 userState[from] = 'inicio'
                 delete userData[from]
@@ -247,12 +263,10 @@ async function ligarbot() {
             }
 
             if (estadoAtual === 'inicio') {
-                // Registrar Chamado / Agendar
                 if (text === '1' || text === 'op_1' || textNorm.includes('registrar chamado') || textNorm.includes('solicitar') || textNorm.includes('agendar')) {
                     userState[from] = 'chamado_nome'
                     await escrever('📋 *Abertura de Chamado*\n\nPara iniciarmos, por favor digite o seu *Nome completo*:' + rodapeNavegacao)
                 
-                // Orçamento
                 } else if (text === '2' || text === 'op_2' || textNorm.includes('orcamento')) {
                     userState[from] = 'tabela_categoria'
                     await enviarLista(
@@ -270,7 +284,6 @@ async function ligarbot() {
                         }]
                     )
 
-                // Tabela de Serviços por Categoria
                 } else if (text === '3' || text === 'op_3' || textNorm.includes('tabela')) {
                     userState[from] = 'tabela_categoria'
                     await enviarLista(
@@ -288,7 +301,6 @@ async function ligarbot() {
                         }]
                     )
 
-                // Regiões
                 } else if (text === '4' || text === 'op_4' || textNorm.includes('regiao')) {
                     const regioes = `📍 *Regiões de Atendimento & Visita:*\n\n🏠 Atendemos exclusivamente em:\n🔹 *Itabuna*\n🔹 *Ilhéus*\n🔹 *Itapé*\n\n🚗 *Taxa de Visita:* R$ 50,00 (Valor abatido no total caso o serviço seja aprovado!).`
                     await escrever(regioes)
@@ -297,7 +309,6 @@ async function ligarbot() {
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
 
-                // Pagamento
                 } else if (text === '5' || text === 'op_5' || textNorm.includes('pagamento')) {
                     const pagamentos = `💳 *Formas de Pagamento Aceitas:*\n\n✅ Pix\n✅ Cartão de Crédito (até 12x)\n✅ Cartão de Débito\n✅ Dinheiro em espécie`
                     await escrever(pagamentos)
@@ -306,7 +317,6 @@ async function ligarbot() {
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
 
-                // Horário
                 } else if (text === '6' || text === 'op_6' || textNorm.includes('horario')) {
                     const horarios = `⏰ *Horário de Atendimento:*\n\nAtendemos de Segunda a Sexta-feira, das 08h às 18h.`
                     await escrever(horarios)
@@ -315,31 +325,27 @@ async function ligarbot() {
                         { displayText: "🏠 Menu Principal", id: "menu" }
                     ])
 
-                // Atendente
                 } else if (text === '7' || text === 'op_7' || textNorm.includes('atendente')) {
                     userState[from] = 'atendente_nome'
                     await escrever('📞 *Atendimento Humano*\n\nPara encaminharmos você a um especialista, por favor digite seu *Nome completo*:' + rodapeNavegacao)
 
-                // Status / Reclamação
                 } else if (text === '8' || text === 'op_8' || textNorm.includes('status') || textNorm.includes('reclamacao')) {
                     userState[from] = 'reclamacao_nome'
                     await escrever('🔍 *Consulta de Status / Reclamação*\n\nPor favor, informe o seu *Nome completo*:' + rodapeNavegacao)
 
-                // Menu Principal por texto
                 } else if (textNorm === 'menu' || textNorm.includes('menu principal')) {
                     await mostrarMenuPrincipal(from)
 
-                // Resposta IA ou Menu padrão
                 } else {
                     const respostaAI = await responderComGemini(text)
                     if (respostaAI) {
                         await escrever(respostaAI)
+                    } else {
+                        await mostrarMenuPrincipal(from)
                     }
-                    await mostrarMenuPrincipal(from)
                 }
             }
 
-            // Tratamento das categorias
             else if (estadoAtual === 'tabela_categoria') {
                 if (text === 'tab_vazamentos' || textNorm.includes('vazamento')) {
                     const listaVazamentos = `🔍 *Lista de Serviços - Vazamentos (20 Opções):*\n\n` +
@@ -465,11 +471,9 @@ async function ligarbot() {
                 
                 const resumoChamado = `🚨 *NOVO CHAMADO REGISTRADO*\n\n🔢 *Protocolo:* #${protocolo}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${userData[from].telefone}\n🏠 *Endereço:* ${userData[from].endereco}\n📝 *Detalhes:* ${userData[from].detalhes}`
                 
-                // Envia para o cliente que criou o chamado
                 await escrever(resumoChamado)
                 await escrever(`✅ *Chamado #${protocolo} registrado com sucesso!* Um de nossos técnicos entrará em contato em instantes.`)
                 
-                // Envia a notificação diretamente para o grupo do WhatsApp
                 if (ID_GRUPO_NOTIFICACAO) {
                     try {
                         await client.sendMessage(ID_GRUPO_NOTIFICACAO, { text: `📢 *ATENÇÃO EQUIPE*\nUm novo chamado foi recebido pelo bot:\n\n` + resumoChamado })
@@ -495,15 +499,16 @@ async function ligarbot() {
             jaPareou = true
             const Pergunta = await question('Por Favor Me diga Seu número (ex: 5573981070937):\n')
             const Numero = Pergunta.replace(/[^0-9]/g, '')
-            let codigo = await client.requestPairingCode(Numero)
-            codigo = codigo?.match(/.{1,4}/g)?.join("-") || codigo
-            console.log(`🔑 Codigo de Pareamento: ${codigo}`)
+            if (Numero) {
+                let codigo = await client.requestPairingCode(Numero)
+                codigo = codigo?.match(/.{1,4}/g)?.join("-") || codigo
+                console.log(`\n🔑 Codigo de Pareamento: ${codigo}\n`)
+            }
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado com sucesso com suporte a Listas e Botoes Interativos!')
+            console.log('✅ Bot conectado com sucesso com sessão persistente no MongoDB Atlas!')
             
-            // Resolve o ID do grupo através do código de convite fornecido
             try {
                 const infoGrupo = await client.groupGetInviteInfo(LINK_CONVITE_GRUPO)
                 ID_GRUPO_NOTIFICACAO = infoGrupo.id
