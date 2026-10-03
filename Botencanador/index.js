@@ -52,9 +52,7 @@ async function iniciarBanco() {
                 try {
                     await mongoose.connection.db.collection('sessions').deleteMany({});
                     console.log('✨ Sessão limpa no MongoDB!');
-                } catch (e) {
-                    console.log('Aviso ao limpar coleção:', e.message);
-                }
+                } catch (e) {}
             }
 
             authStateData = await useMongoDBAuthState();
@@ -74,17 +72,16 @@ async function ligarbot() {
 
     const { state, saveCreds } = authStateData
     
-    // Configuração estável do socket sem emulações incompatíveis
     const client = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
         markOnlineOnConnect: false,
         syncFullHistory: false,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 25000
+        keepAliveIntervalMs: 30000
     })
 
     client.ev.on('creds.update', saveCreds)
@@ -233,7 +230,7 @@ async function ligarbot() {
             jaPareou = true
             const Numero = BOT_NUMBER.replace(/[^0-9]/g, '')
             if (Numero) {
-                await esperar(6000)
+                await esperar(8000)
                 try {
                     let codigo = await client.requestPairingCode(Numero)
                     console.log(`\n==============================================`)

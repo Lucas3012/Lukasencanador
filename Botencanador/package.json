@@ -1,25 +1,18 @@
 {
-  "name": "tec-kode-bot",
-  "version": "2.0.0",
-  "description": "Esta é uma Base feita por Rony/Spectrum, link do canal dele: https://youtube.com/@Spectrum_bots",
-  "main": "index.js",
+  "name": "bot-encanador",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp Encanador",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
-  "author": "rony",
-  "license": "ISC",
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
-    "@adiwajshing/keyed-db": "^0.2.4",
-    "@google/genai": "^2.24.0",
-    "@itsliaaa/baileys": "^0.3.18-final",
-    "@whiskeysockets/baileys": "7.0.0-rc.3",
-    "baileys-mongo": "^1.5.0",
-    "mongoose": "^9.10.3",
-    "pino": "^7.11.0"
-  },
-  "allowScripts": {
-    "@google/genai@2.24.0": true,
-    "@whiskeysockets/baileys@7.0.0-rc.3": true,
-    "protobufjs@7.6.6": true
+    "@itsliaaa/baileys": "^6.7.12",
+    "express": "^4.19.2",
+    "mongoose": "^8.3.1",
+    "pino": "^9.0.0"
   }
 }
