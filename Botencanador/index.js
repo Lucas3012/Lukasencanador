@@ -7,9 +7,9 @@ const fs = require('fs')
 const path = require('path')
 
 const MONGO_URI = process.env.MONGO_URI || ''
+const BOT_NUMBER = process.env.BOT_NUMBER || ''
 
 const LINK_CONVITE_GRUPO = 'EwUIug1DbI3IWZGkpbrJ8n' 
-let ID_GRUPO_NOTIFICACAO = null
 let jaPareou = false
 
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
@@ -23,14 +23,6 @@ function carregarChamados() {
     return {}
 }
 
-function salvarChamado(protocolo, dados) {
-    try {
-        const chamados = carregarChamados()
-        chamados[protocolo] = { ...dados, dataCriacao: new Date().toISOString() }
-        fs.writeFileSync(ARQUIVO_CHAMADOS, JSON.stringify(chamados, null, 2), 'utf8')
-    } catch (e) {}
-}
-
 const userState = {} 
 const userData = {}
 const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
@@ -41,31 +33,19 @@ function normalizar(texto) {
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
-const question = (texto) => new Promise((resolve) => {
-    if (!process.stdin.isTTY) {
-        console.log('⚠️ Aguardando sessão salva no MongoDB.');
-        return resolve('');
-    }
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-    rl.question(texto, (resposta) => {
-        rl.close()
-        resolve(resposta)
-    })
-})
-
 async function ligarbot() {
     let state, saveCreds;
 
     if (MONGO_URI) {
         try {
             console.log('🍃 Conectando ao MongoDB Atlas para recuperar/salvar sessão...');
-            await mongoose.connect(MONGO_URI);
+            await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 10000 });
             const auth = await useMongoDBAuthState();
             state = auth.state;
             saveCreds = auth.saveCreds;
+            console.log('✅ Conectado ao MongoDB com sucesso!');
         } catch (err) {
-            console.error('❌ Erro de conexão com MongoDB Atlas:', err.message);
-            console.log('⚠️ Iniciando com autenticação local temporária...');
+            console.error('❌ Falha ao conectar ao MongoDB:', err.message);
             const { useMultiFileAuthState } = require('@whiskeysockets/baileys');
             const localAuth = await useMultiFileAuthState('./sessao');
             state = localAuth.state;
@@ -217,23 +197,26 @@ async function ligarbot() {
     client.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
 
-        if (qr && !client.authState.creds.registered && !jaPareou) {
+        if (!client.authState.creds.registered && !jaPareou) {
             jaPareou = true
-            const Pergunta = await question('Digite o número para pareamento (ex: 5573981070937):\n')
-            const Numero = Pergunta.replace(/[^0-9]/g, '')
+            const Numero = BOT_NUMBER.replace(/[^0-9]/g, '')
             if (Numero) {
                 let codigo = await client.requestPairingCode(Numero)
-                console.log(`\n🔑 Codigo de Pareamento: ${codigo}\n`)
+                console.log(`\n==============================================`)
+                console.log(`🔑 CODIGO DE PAREAMENTO WHATSAPP: ${codigo}`)
+                console.log(`==============================================\n`)
+            } else {
+                console.log('⚠️️ BOT_NUMBER nao foi definido nas variaveis de ambiente.')
             }
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado no WhatsApp!')
+            console.log('✅ Bot conectado no WhatsApp com sucesso!')
         }
         
         if (connection === 'close') {
             if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-                setTimeout(() => ligarbot(), 1000)
+                setTimeout(() => ligarbot(), 2000)
             }
         }
     })
