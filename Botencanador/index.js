@@ -47,11 +47,14 @@ async function iniciarBanco() {
             await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 10000 });
             console.log('✅ Conectado ao MongoDB com sucesso!');
 
-            // Se for forçado via variável de ambiente, limpa a sessão antiga
             if (process.env.RESET_SESSION === 'true') {
                 console.log('🧹 Limpando coleção de sessão antiga...');
-                await mongoose.connection.db.collection('sessions').deleteMany({});
-                console.log('✨ Sessão limpa com sucesso!');
+                try {
+                    await mongoose.connection.db.collection('sessions').deleteMany({});
+                    console.log('✨ Sessão limpa no MongoDB!');
+                } catch (e) {
+                    console.log('Aviso ao limpar coleção:', e.message);
+                }
             }
 
             authStateData = await useMongoDBAuthState();
@@ -70,22 +73,18 @@ async function ligarbot() {
     await iniciarBanco()
 
     const { state, saveCreds } = authStateData
-    const { version } = await fetchLatestBaileysVersion()
     
+    // Configuração estável do socket sem emulações incompatíveis
     const client = makeWASocket({
-        version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: Browsers.macOS('Ubuntu'),
+        browser: ['Ubuntu', 'Chrome', '20.0.04'],
         printQRInTerminal: false,
-        markOnlineOnConnect: true,
+        markOnlineOnConnect: false,
+        syncFullHistory: false,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 10000,
-        retryRequestOptions: {
-            maxRetries: 5,
-            delayMs: 2000
-        }
+        keepAliveIntervalMs: 25000
     })
 
     client.ev.on('creds.update', saveCreds)
@@ -234,7 +233,7 @@ async function ligarbot() {
             jaPareou = true
             const Numero = BOT_NUMBER.replace(/[^0-9]/g, '')
             if (Numero) {
-                await esperar(5000)
+                await esperar(6000)
                 try {
                     let codigo = await client.requestPairingCode(Numero)
                     console.log(`\n==============================================`)
@@ -252,9 +251,9 @@ async function ligarbot() {
         }
         
         if (connection === 'close') {
-            const reason = lastDisconnect?.error?.output?.statusCode
-            console.log(`🔄 Conexão fechada (${reason}). Reiniciando em 10 segundos...`)
-            if (reason !== DisconnectReason.loggedOut) {
+            const statusCode = lastDisconnect?.error?.output?.statusCode
+            console.log(`🔄 Conexão fechada (${statusCode}). Reiniciando em 10 segundos...`)
+            if (statusCode !== DisconnectReason.loggedOut) {
                 setTimeout(() => ligarbot(), 10000)
             }
         }
