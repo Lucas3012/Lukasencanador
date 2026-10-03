@@ -9,6 +9,7 @@ const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = process.env.BOT_NUMBER || ''
 
 let jaPareou = false
+let authStateData = null
 
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
 
@@ -39,31 +40,29 @@ function normalizar(texto) {
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
-async function ligarbot() {
-    let state, saveCreds;
-
-    if (MONGO_URI) {
+// Conecta ao MongoDB apenas uma vez na inicialização
+async function iniciarBanco() {
+    if (MONGO_URI && mongoose.connection.readyState === 0) {
         try {
             console.log('🍃 Conectando ao MongoDB Atlas...');
             await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 10000 });
-            const auth = await useMongoDBAuthState();
-            state = auth.state;
-            saveCreds = auth.saveCreds;
             console.log('✅ Conectado ao MongoDB com sucesso!');
+            authStateData = await useMongoDBAuthState();
         } catch (err) {
             console.error('❌ Falha ao conectar ao MongoDB:', err.message);
             const { useMultiFileAuthState } = require('@itsliaaa/baileys');
-            const localAuth = await useMultiFileAuthState('./sessao');
-            state = localAuth.state;
-            saveCreds = localAuth.saveCreds;
+            authStateData = await useMultiFileAuthState('./sessao');
         }
-    } else {
+    } else if (!authStateData) {
         const { useMultiFileAuthState } = require('@itsliaaa/baileys');
-        const localAuth = await useMultiFileAuthState('./sessao');
-        state = localAuth.state;
-        saveCreds = localAuth.saveCreds;
+        authStateData = await useMultiFileAuthState('./sessao');
     }
+}
 
+async function ligarbot() {
+    await iniciarBanco()
+
+    const { state, saveCreds } = authStateData
     const { version } = await fetchLatestBaileysVersion()
     
     const client = makeWASocket({
@@ -243,7 +242,7 @@ async function ligarbot() {
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
-            console.log(`🔄 Conexão fechada. Reiniciando em 5 segundos...`)
+            console.log(`🔄 Conexão fechada (${reason}). Reiniciando em 5 segundos...`)
             if (reason !== DisconnectReason.loggedOut) {
                 setTimeout(() => ligarbot(), 5000)
             }
