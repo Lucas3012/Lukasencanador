@@ -8,6 +8,10 @@ const path = require('path')
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = process.env.BOT_NUMBER || ''
 
+// Link de convite do grupo
+const LINK_GRUPO = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n'
+let GRUPO_JID = null // Guardará o JID do grupo após entrar/verificar
+
 let jaPareou = false
 let clienteAtual = null
 
@@ -148,21 +152,24 @@ _Digite a opção desejada (1 a 8):_`
 
             const estadoAtual = userState[from]
 
-            if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu') && estadoAtual !== 'inicio') {
+            // Cancela/volta ao menu
+            if ((text === '0' || textNorm === 'voltar' || textNorm === 'menu' || textNorm === 'cancelar') && estadoAtual !== 'inicio') {
                 userState[from] = 'inicio'
                 delete userData[from]
+                await escrever('❌ Solicitação cancelada.')
                 await mostrarMenuPrincipal(from)
                 return
             }
 
+            // MENU PRINCIPAL
             if (estadoAtual === 'inicio') {
                 if (text === '1' || textNorm.includes('agendar') || textNorm.includes('solicitar')) {
-                    userState[from] = 'chamado_nome'
-                    await escrever('📋 *Abertura de Chamado*\n\nPor favor, digite o seu *Nome completo*:')
+                    userState[from] = 'form_nome'
+                    await escrever('📋 *Formulário de Agendamento (1/5)*\n\nPor favor, digite o seu *Nome completo*:\n\n_(Digite 0 a qualquer momento para cancelar)_')
                 } else if (text === '2' || textNorm.includes('orcamento')) {
-                    await escrever('💰 *Orçamento Automático*\n\nNossos serviços de encanamento em geral variam de acordo com a complexidade. Para uma estimativa precisa, descreva o problema abaixo ou envie uma foto/vídeo.')
+                    await escrever('💰 *Orçamento Automático*\n\nNossos serviços variam conforme a complexidade. Para uma estimativa, descreva o problema abaixo ou envie uma foto/vídeo.')
                 } else if (text === '3' || textNorm.includes('tabela')) {
-                    await escrever('🛠️ *Serviços Prestados:*\n- Desentupimento em geral\n- Reparo de vazamentos\n- Instalação de louças e metais\n- Manutenção em caixa d\'água\n\nDigite *0* a qualquer momento para voltar ao menu.')
+                    await escrever('🛠️ *Serviços Prestados:*\n- Desentupimento em geral\n- Reparo de vazamentos\n- Instalação de louças e metais\n- Manutenção em caixa d\'água\n\nDigite *0* para voltar ao menu.')
                 } else if (text === '4' || textNorm.includes('regiao')) {
                     await escrever('📍 Atendemos em Itabuna, Ilhéus e região. Taxa de visita a partir de R$ 50,00.')
                 } else if (text === '5' || textNorm.includes('pagamento')) {
@@ -176,15 +183,86 @@ _Digite a opção desejada (1 a 8):_`
                 } else {
                     await mostrarMenuPrincipal(from)
                 }
-            } else if (estadoAtual === 'chamado_nome') {
+
+            // PASSO 1: NOME
+            } else if (estadoAtual === 'form_nome') {
                 userData[from].nome = text
-                userState[from] = 'chamado_detalhes'
-                await escrever(`Prazer, *${text}*! Agora digite o seu *Endereço completo* e os *Detalhes do problema*:`)
-            } else if (estadoAtual === 'chamado_detalhes') {
+                userState[from] = 'form_telefone'
+                await escrever(`Prazer, *${text}*!\n\n📞 *(2/5)* Agora digite o seu *Telefone/WhatsApp* para contato (com DDD):`)
+
+            // PASSO 2: TELEFONE
+            } else if (estadoAtual === 'form_telefone') {
+                userData[from].telefone = text
+                userState[from] = 'form_endereco'
+                await escrever('🏠 *(3/5)* Digite o seu *Endereço completo* (Rua, Número, Bairro e Ponto de Referência):')
+
+            // PASSO 3: ENDEREÇO
+            } else if (estadoAtual === 'form_endereco') {
+                userData[from].endereco = text
+                userState[from] = 'form_tipo_servico'
+                await escrever('🔧 *(4/5)* Qual é o *Tipo de Serviço* que você precisa?\n\nExemplos:\n- Desentupimento\n- Reparo de Vazamento\n- Instalação de Torneira/Sifão\n- Manutenção de Caixa d\'água\n- Outro')
+
+            // PASSO 4: TIPO DE SERVIÇO
+            } else if (estadoAtual === 'form_tipo_servico') {
+                userData[from].tipoServico = text
+                userState[from] = 'form_detalhes'
+                await escrever('📝 *(5/5)* Por fim, descreva com mais *Detalhes o problema* ou o que precisa ser feito:')
+
+            // PASSO 5: DETALHES E FINALIZAÇÃO
+            } else if (estadoAtual === 'form_detalhes') {
+                userData[from].detalhes = text
                 const protocolo = gerarProtocolo()
-                salvarChamado(protocolo, { nome: userData[from].nome, detalhes: text })
-                await escrever(`✅ *Chamado #${protocolo} registrado com sucesso!*\n\nNossa equipe entrará em contato em breve para confirmar o horário. Digite *0* para voltar ao menu principal.`)
+
+                // Salva todos os dados
+                salvarChamado(protocolo, {
+                    nome: userData[from].nome,
+                    telefone: userData[from].telefone,
+                    endereco: userData[from].endereco,
+                    tipoServico: userData[from].tipoServico,
+                    detalhes: userData[from].detalhes,
+                    status: 'Pendente'
+                })
+
+                const resumoCliente = 
+`✅ *CHAMADO REGISTRADO COM SUCESSO!*
+
+📌 *Protocolo:* #${protocolo}
+👤 *Nome:* ${userData[from].nome}
+📞 *Telefone:* ${userData[from].telefone}
+🏠 *Endereço:* ${userData[from].endereco}
+🛠️ *Tipo de Serviço:* ${userData[from].tipoServico}
+📝 *Detalhes:* ${userData[from].detalhes}
+
+Nossa equipe entrará em contato em breve para confirmar a visita!
+_Digite *0* a qualquer momento para voltar ao menu principal._`
+
+                await escrever(resumoCliente)
+
+                // Envia notificação detalhada para o grupo do WhatsApp
+                if (GRUPO_JID) {
+                    try {
+                        const mensagemGrupo = 
+`🚨 *NOVO CHAMADO RECEBIDO!*
+
+📌 *Protocolo:* #${protocolo}
+👤 *Cliente:* ${userData[from].nome}
+📞 *Contato:* ${userData[from].telefone}
+🏠 *Endereço:* ${userData[from].endereco}
+🛠️ *Serviço:* ${userData[from].tipoServico}
+📝 *Detalhes:* ${userData[from].detalhes}`
+
+                        await client.sendMessage(GRUPO_JID, { text: mensagemGrupo })
+                        console.log(`📢 Chamado #${protocolo} enviado com sucesso para o grupo!`)
+                    } catch (eGrupo) {
+                        console.error('❌ Erro ao enviar mensagem para o grupo:', eGrupo.message)
+                    }
+                } else {
+                    console.log('⚠️ JID do grupo ainda não identificado. Tentando conectar novamente ao grupo...')
+                }
+
+                // Limpa o estado
                 userState[from] = 'inicio'
+                delete userData[from]
             }
         } catch (erro) {
             console.log('Erro ao processar mensagem:', erro)
@@ -213,6 +291,32 @@ _Digite a opção desejada (1 a 8):_`
         
         if (connection === 'open') {
             console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!')
+
+            // Conecta ao grupo do WhatsApp pelo link de convite se ainda não tiver o JID
+            try {
+                const codeMatch = LINK_GRUPO.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/)
+                if (codeMatch && codeMatch[1]) {
+                    const inviteCode = codeMatch[1]
+                    GRUPO_JID = await client.groupAcceptInvite(inviteCode)
+                    console.log(`👥 Bot pronto e vinculado ao grupo JID: ${GRUPO_JID}`)
+                }
+            } catch (err) {
+                // Se já estiver no grupo, o erro traz a informação do grupo
+                if (err.data === 409 || err.message?.includes('already')) {
+                    try {
+                        const codeMatch = LINK_GRUPO.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/)
+                        if (codeMatch && codeMatch[1]) {
+                            const groupInfo = await client.groupGetInviteInfo(codeMatch[1])
+                            GRUPO_JID = groupInfo.id
+                            console.log(`👥 Bot já pertence ao grupo: ${groupInfo.subject} (${GRUPO_JID})`)
+                        }
+                    } catch (e) {
+                        console.error('⚠️ Não foi possível obter o JID do grupo:', e.message)
+                    }
+                } else {
+                    console.error('⚠️ Erro ao entrar no grupo via link:', err.message)
+                }
+            }
         }
         
         if (connection === 'close') {
@@ -221,7 +325,7 @@ _Digite a opção desejada (1 a 8):_`
             if (reason !== DisconnectReason.loggedOut) {
                 setTimeout(() => ligarbot(), 5000)
             } else {
-                console.log('❌ Sessão deslogada. Apague os dados do MongoDB/sessao para gerar um novo código.')
+                console.log('❌ Sessão deslogada.')
             }
         }
     })
