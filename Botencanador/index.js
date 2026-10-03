@@ -57,11 +57,20 @@ async function ligarbot() {
     let state, saveCreds;
 
     if (MONGO_URI) {
-        console.log('🍃 Conectando ao MongoDB Atlas para recuperar/salvar sessão...');
-        await mongoose.connect(MONGO_URI);
-        const auth = await useMongoDBAuthState();
-        state = auth.state;
-        saveCreds = auth.saveCreds;
+        try {
+            console.log('🍃 Conectando ao MongoDB Atlas para recuperar/salvar sessão...');
+            await mongoose.connect(MONGO_URI);
+            const auth = await useMongoDBAuthState();
+            state = auth.state;
+            saveCreds = auth.saveCreds;
+        } catch (err) {
+            console.error('❌ Erro de conexão com MongoDB Atlas:', err.message);
+            console.log('⚠️ Iniciando com autenticação local temporária...');
+            const { useMultiFileAuthState } = require('@whiskeysockets/baileys');
+            const localAuth = await useMultiFileAuthState('./sessao');
+            state = localAuth.state;
+            saveCreds = localAuth.saveCreds;
+        }
     } else {
         const { useMultiFileAuthState } = require('@whiskeysockets/baileys');
         const localAuth = await useMultiFileAuthState('./sessao');
@@ -219,7 +228,7 @@ async function ligarbot() {
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado no WhatsApp com sessão salva no MongoDB Atlas!')
+            console.log('✅ Bot conectado no WhatsApp!')
         }
         
         if (connection === 'close') {
