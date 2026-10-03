@@ -1,4 +1,4 @@
-const { default: makeWASocket, fetchLatestBaileysVersion, Browsers, DisconnectReason, generateWAMessageFromContent, proto } = require('@whiskeysockets/baileys')
+const { default: makeWASocket, fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('@whiskeysockets/baileys')
 const useMongoDBAuthState = require('./mongoAuth')
 const mongoose = require('mongoose')
 const pino = require('pino')
@@ -9,6 +9,7 @@ const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = process.env.BOT_NUMBER || ''
 
 let jaPareou = false
+let clienteAtual = null
 
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
 
@@ -40,6 +41,14 @@ function normalizar(texto) {
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
 async function ligarbot() {
+    if (clienteAtual) {
+        try {
+            clienteAtual.ev.removeAllListeners()
+            clienteAtual.ws?.close()
+        } catch (e) {}
+        clienteAtual = null
+    }
+
     let state, saveCreds;
 
     if (MONGO_URI) {
@@ -77,6 +86,8 @@ async function ligarbot() {
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 10000
     })
+
+    clienteAtual = client
 
     client.ev.on('creds.update', saveCreds)
 
@@ -159,7 +170,7 @@ _Digite a opção desejada (1 a 8):_`
                 } else if (text === '6' || textNorm.includes('horario')) {
                     await escrever('⏰ *Horário de Funcionamento:*\nSegunda a Sexta: 08:00 às 18:00\nSábado: 08:00 às 12:00\nAtendimento emergencial 24h sob consulta.')
                 } else if (text === '7' || textNorm.includes('atendente')) {
-                    await escrever('👨‍‍🔧 Um atendente humano responderá à sua mensagem em instantes. Por favor, aguarde!')
+                    await escrever('👨‍🔧 Um atendente humano responderá à sua mensagem em instantes. Por favor, aguarde!')
                 } else if (text === '8' || textNorm.includes('status')) {
                     await escrever('🔍 Para verificar o status, digite o *número do protocolo* do seu chamado:')
                 } else {
@@ -206,9 +217,11 @@ _Digite a opção desejada (1 a 8):_`
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
-            console.log(`🔄 Conexão fechada. Reiniciando em 5 segundos...`)
+            console.log(`🔄 Conexão fechada (${reason || 'desconhecido'}). Reiniciando em 5 segundos...`)
             if (reason !== DisconnectReason.loggedOut) {
                 setTimeout(() => ligarbot(), 5000)
+            } else {
+                console.log('❌ Sessão deslogada. Apague os dados do MongoDB/sessao para gerar um novo código.')
             }
         }
     })
