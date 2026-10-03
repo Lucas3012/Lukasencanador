@@ -75,7 +75,7 @@ async function ligarbot() {
     const client = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: Browsers.ubuntu('Chrome'),
+        browser: ['Ubuntu', 'Chrome', '110.0.5563.56'],
         printQRInTerminal: false,
         markOnlineOnConnect: false,
         syncFullHistory: false,
@@ -230,7 +230,8 @@ async function ligarbot() {
             jaPareou = true
             const Numero = BOT_NUMBER.replace(/[^0-9]/g, '')
             if (Numero) {
-                await esperar(8000)
+                console.log(`📱 Solicitando código de pareamento para o número: ${Numero}...`)
+                await esperar(10000)
                 try {
                     let codigo = await client.requestPairingCode(Numero)
                     console.log(`\n==============================================`)
@@ -240,6 +241,8 @@ async function ligarbot() {
                     console.error('❌ Erro ao solicitar código de pareamento:', err.message)
                     jaPareou = false
                 }
+            } else {
+                console.log('⚠️ A variável BOT_NUMBER não foi definida nas variáveis de ambiente do Render!')
             }
         }
         
