@@ -2,14 +2,12 @@ const { default: makeWASocket, fetchLatestBaileysVersion, Browsers, DisconnectRe
 const useMongoDBAuthState = require('./mongoAuth')
 const mongoose = require('mongoose')
 const pino = require('pino')
-const readline = require('readline')
 const fs = require('fs')
 const path = require('path')
 
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = process.env.BOT_NUMBER || ''
 
-const LINK_CONVITE_GRUPO = 'EwUIug1DbI3IWZGkpbrJ8n' 
 let jaPareou = false
 
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
@@ -21,6 +19,14 @@ function carregarChamados() {
         }
     } catch (e) {}
     return {}
+}
+
+function salvarChamado(protocolo, dados) {
+    try {
+        const chamados = carregarChamados()
+        chamados[protocolo] = { ...dados, dataCriacao: new Date().toISOString() }
+        fs.writeFileSync(ARQUIVO_CHAMADOS, JSON.stringify(chamados, null, 2), 'utf8')
+    } catch (e) {}
 }
 
 const userState = {} 
@@ -38,7 +44,7 @@ async function ligarbot() {
 
     if (MONGO_URI) {
         try {
-            console.log('🍃 Conectando ao MongoDB Atlas para recuperar/salvar sessão...');
+            console.log('🍃 Conectando ao MongoDB Atlas...');
             await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 10000 });
             const auth = await useMongoDBAuthState();
             state = auth.state;
@@ -64,57 +70,34 @@ async function ligarbot() {
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: Browsers.ubuntu('Chrome'),
-        printQRInTerminal: false
+        browser: Browsers.macOS('Desktop'),
+        printQRInTerminal: false,
+        markOnlineOnConnect: true,
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000
     })
 
     client.ev.on('creds.update', saveCreds)
 
-    async function enviarLista(from, title, text, buttonText, sections) {
-        const msg = generateWAMessageFromContent(from, {
-            viewOnceMessage: {
-                message: {
-                    interactiveMessage: proto.Message.InteractiveMessage.create({
-                        body: proto.Message.InteractiveMessage.Body.create({ text }),
-                        header: proto.Message.InteractiveMessage.Header.create({ title, hasMediaAttachment: false }),
-                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                            buttons: [{ name: "single_select", buttonParamsJson: JSON.stringify({ title: buttonText, sections }) }]
-                        })
-                    })
-                }
-            }
-        }, {})
-        await client.relayMessage(from, msg.message, { messageId: msg.key.id })
-    }
-
     async function mostrarMenuPrincipal(from) {
-        const secoes = [
-            {
-                title: "Atendimento & Serviços",
-                rows: [
-                    { title: "Solicitar Serviço / Agendar", description: "Abra um novo chamado", id: "op_1" },
-                    { title: "Orçamento Automático", description: "Estimativas de preços", id: "op_2" },
-                    { title: "Tabela por Categoria", description: "Veja todos os serviços", id: "op_3" }
-                ]
-            },
-            {
-                title: "Informações Geral",
-                rows: [
-                    { title: "Regiões & Taxa de Visita", description: "Cidades e custos", id: "op_4" },
-                    { title: "Formas de Pagamento", description: "Pix, cartões e dinheiro", id: "op_5" },
-                    { title: "Horário de Funcionamento", description: "Nossa disponibilidade", id: "op_6" }
-                ]
-            },
-            {
-                title: "Suporte",
-                rows: [
-                    { title: "Falar com Atendente", description: "Conversar com equipe humana", id: "op_7" },
-                    { title: "Status do Atendimento", description: "Consultar protocolo", id: "op_8" }
-                ]
-            }
-        ]
+        const menuTexto = 
+`👋 *Atendimento Lukas Encanador*
 
-        await enviarLista(from, "👋 Atendimento do Encanador", "Escolha uma opção no menu:", "Ver Opções", secoes)
+Por favor, escolha uma opção digitando o *número* correspondente:
+
+1️⃣ *Solicitar Serviço / Agendar*
+2️⃣ *Orçamento Automático*
+3️⃣ *Tabela por Categoria*
+4️⃣ *Regiões & Taxa de Visita*
+5️⃣ *Formas de Pagamento*
+6️⃣ *Horário de Funcionamento*
+7️⃣ *Falar com Atendente*
+8️⃣ *Status do Atendimento*
+
+_Digite a opção desejada (1 a 8):_`
+
+        await client.sendMessage(from, { text: menuTexto })
     }
 
     client.ev.on('messages.upsert', async ({ messages }) => {
@@ -162,35 +145,38 @@ async function ligarbot() {
             }
 
             if (estadoAtual === 'inicio') {
-                if (text === '1' || text === 'op_1' || textNorm.includes('agendar') || textNorm.includes('solicitar')) {
+                if (text === '1' || textNorm.includes('agendar') || textNorm.includes('solicitar')) {
                     userState[from] = 'chamado_nome'
                     await escrever('📋 *Abertura de Chamado*\n\nPor favor, digite o seu *Nome completo*:')
-                } else if (text === '2' || text === 'op_2' || textNorm.includes('orcamento')) {
-                    await mostrarMenuPrincipal(from)
-                } else if (text === '3' || text === 'op_3' || textNorm.includes('tabela')) {
-                    await mostrarMenuPrincipal(from)
-                } else if (text === '4' || text === 'op_4' || textNorm.includes('regiao')) {
-                    await escrever('📍 Atendemos em Itabuna, Ilhéus e Itapé. Taxa de visita: R$ 50,00.')
-                } else if (text === '5' || text === 'op_5' || textNorm.includes('pagamento')) {
-                    await escrever('💳 Aceitamos Pix, Cartões (até 12x) e Dinheiro.')
-                } else if (text === '6' || text === 'op_6' || textNorm.includes('horario')) {
-                    await escrever('⏰ Atendemos de Segunda a Sexta, das 08h às 18h.')
-                } else if (text === '7' || text === 'op_7' || textNorm.includes('atendente')) {
-                    await escrever('👨‍🔧 Um atendente humano responderá em instantes.')
+                } else if (text === '2' || textNorm.includes('orcamento')) {
+                    await escrever('💰 *Orçamento Automático*\n\nNossos serviços de encanamento em geral variam de acordo com a complexidade. Para uma estimativa precisa, descreva o problema abaixo ou envie uma foto/vídeo.')
+                } else if (text === '3' || textNorm.includes('tabela')) {
+                    await escrever('🛠️ *Serviços Prestados:*\n- Desentupimento em geral\n- Reparo de vazamentos\n- Instalação de louças e metais\n- Manutenção em caixa d\'água\n\nDigite *0* a qualquer momento para voltar ao menu.')
+                } else if (text === '4' || textNorm.includes('regiao')) {
+                    await escrever('📍 Atendemos em Itabuna, Ilhéus e região. Taxa de visita a partir de R$ 50,00.')
+                } else if (text === '5' || textNorm.includes('pagamento')) {
+                    await escrever('💳 Aceitamos Pix, Cartões de Crédito/Débito e Dinheiro.')
+                } else if (text === '6' || textNorm.includes('horario')) {
+                    await escrever('⏰ *Horário de Funcionamento:*\nSegunda a Sexta: 08:00 às 18:00\nSábado: 08:00 às 12:00\nAtendimento emergencial 24h sob consulta.')
+                } else if (text === '7' || textNorm.includes('atendente')) {
+                    await escrever('👨‍‍🔧 Um atendente humano responderá à sua mensagem em instantes. Por favor, aguarde!')
+                } else if (text === '8' || textNorm.includes('status')) {
+                    await escrever('🔍 Para verificar o status, digite o *número do protocolo* do seu chamado:')
                 } else {
                     await mostrarMenuPrincipal(from)
                 }
             } else if (estadoAtual === 'chamado_nome') {
                 userData[from].nome = text
                 userState[from] = 'chamado_detalhes'
-                await escrever(`Prazer, *${text}*! Digite o seu endereço e detalhes do problema:`)
+                await escrever(`Prazer, *${text}*! Agora digite o seu *Endereço completo* e os *Detalhes do problema*:`)
             } else if (estadoAtual === 'chamado_detalhes') {
                 const protocolo = gerarProtocolo()
-                await escrever(`✅ *Chamado #${protocolo} registrado com sucesso!*`)
+                salvarChamado(protocolo, { nome: userData[from].nome, detalhes: text })
+                await escrever(`✅ *Chamado #${protocolo} registrado com sucesso!*\n\nNossa equipe entrará em contato em breve para confirmar o horário. Digite *0* para voltar ao menu principal.`)
                 userState[from] = 'inicio'
             }
         } catch (erro) {
-            console.log('Erro:', erro)
+            console.log('Erro ao processar mensagem:', erro)
         }
     })
 
@@ -201,31 +187,28 @@ async function ligarbot() {
             jaPareou = true
             const Numero = BOT_NUMBER.replace(/[^0-9]/g, '')
             if (Numero) {
-                console.log('⏳ A aguardar estabilização da conexão antes de solicitar código de pareamento...')
-                await esperar(3000)
+                await esperar(5000)
                 try {
                     let codigo = await client.requestPairingCode(Numero)
                     console.log(`\n==============================================`)
-                    console.log(`🔑 CODIGO DE PAREAMENTO WHATSAPP: ${codigo}`)
+                    console.log(`🔑 CODIGO DE PAREAMENTO: ${codigo}`)
                     console.log(`==============================================\n`)
                 } catch (err) {
                     console.error('❌ Erro ao solicitar código de pareamento:', err.message)
                     jaPareou = false
                 }
-            } else {
-                console.log('⚠️️ BOT_NUMBER não foi definido nas variáveis de ambiente.')
             }
         }
         
         if (connection === 'open') {
-            console.log('✅ Bot conectado no WhatsApp com sucesso!')
+            console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!')
         }
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
+            console.log(`🔄 Conexão fechada. Reiniciando em 5 segundos...`)
             if (reason !== DisconnectReason.loggedOut) {
-                console.log('🔄 Conexão fechada. A reiniciar bot em 3 segundos...')
-                setTimeout(() => ligarbot(), 3000)
+                setTimeout(() => ligarbot(), 5000)
             }
         }
     })
