@@ -195,18 +195,25 @@ async function ligarbot() {
     })
 
     client.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update
+        const { connection, lastDisconnect } = update
 
         if (!client.authState.creds.registered && !jaPareou) {
             jaPareou = true
             const Numero = BOT_NUMBER.replace(/[^0-9]/g, '')
             if (Numero) {
-                let codigo = await client.requestPairingCode(Numero)
-                console.log(`\n==============================================`)
-                console.log(`🔑 CODIGO DE PAREAMENTO WHATSAPP: ${codigo}`)
-                console.log(`==============================================\n`)
+                console.log('⏳ A aguardar estabilização da conexão antes de solicitar código de pareamento...')
+                await esperar(3000)
+                try {
+                    let codigo = await client.requestPairingCode(Numero)
+                    console.log(`\n==============================================`)
+                    console.log(`🔑 CODIGO DE PAREAMENTO WHATSAPP: ${codigo}`)
+                    console.log(`==============================================\n`)
+                } catch (err) {
+                    console.error('❌ Erro ao solicitar código de pareamento:', err.message)
+                    jaPareou = false
+                }
             } else {
-                console.log('⚠️️ BOT_NUMBER nao foi definido nas variaveis de ambiente.')
+                console.log('⚠️️ BOT_NUMBER não foi definido nas variáveis de ambiente.')
             }
         }
         
@@ -215,8 +222,10 @@ async function ligarbot() {
         }
         
         if (connection === 'close') {
-            if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-                setTimeout(() => ligarbot(), 2000)
+            const reason = lastDisconnect?.error?.output?.statusCode
+            if (reason !== DisconnectReason.loggedOut) {
+                console.log('🔄 Conexão fechada. A reiniciar bot em 3 segundos...')
+                setTimeout(() => ligarbot(), 3000)
             }
         }
     })
