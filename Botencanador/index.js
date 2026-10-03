@@ -40,13 +40,20 @@ function normalizar(texto) {
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
 
-// Conecta ao MongoDB apenas uma vez na inicialização
 async function iniciarBanco() {
     if (MONGO_URI && mongoose.connection.readyState === 0) {
         try {
             console.log('🍃 Conectando ao MongoDB Atlas...');
             await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 10000 });
             console.log('✅ Conectado ao MongoDB com sucesso!');
+
+            // Se for forçado via variável de ambiente, limpa a sessão antiga
+            if (process.env.RESET_SESSION === 'true') {
+                console.log('🧹 Limpando coleção de sessão antiga...');
+                await mongoose.connection.db.collection('sessions').deleteMany({});
+                console.log('✨ Sessão limpa com sucesso!');
+            }
+
             authStateData = await useMongoDBAuthState();
         } catch (err) {
             console.error('❌ Falha ao conectar ao MongoDB:', err.message);
@@ -69,12 +76,16 @@ async function ligarbot() {
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: Browsers.macOS('Desktop'),
+        browser: Browsers.macOS('Ubuntu'),
         printQRInTerminal: false,
         markOnlineOnConnect: true,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 10000
+        keepAliveIntervalMs: 10000,
+        retryRequestOptions: {
+            maxRetries: 5,
+            delayMs: 2000
+        }
     })
 
     client.ev.on('creds.update', saveCreds)
@@ -242,9 +253,9 @@ async function ligarbot() {
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
-            console.log(`🔄 Conexão fechada (${reason}). Reiniciando em 5 segundos...`)
+            console.log(`🔄 Conexão fechada (${reason}). Reiniciando em 10 segundos...`)
             if (reason !== DisconnectReason.loggedOut) {
-                setTimeout(() => ligarbot(), 5000)
+                setTimeout(() => ligarbot(), 10000)
             }
         }
     })
