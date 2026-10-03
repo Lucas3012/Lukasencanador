@@ -1,4 +1,4 @@
-const { default: makeWASocket, fetchLatestBaileysVersion, Browsers, DisconnectReason, generateWAMessageFromContent, proto } = require('@itsliaaa/baileys')
+const { default: makeWASocket, fetchLatestBaileysVersion, Browsers, DisconnectReason, generateWAMessageFromContent, proto } = require('@whiskeysockets/baileys')
 const useMongoDBAuthState = require('./mongoAuth')
 const mongoose = require('mongoose')
 const pino = require('pino')
@@ -63,7 +63,7 @@ async function ligarbot() {
         state = auth.state;
         saveCreds = auth.saveCreds;
     } else {
-        const { useMultiFileAuthState } = require('@itsliaaa/baileys');
+        const { useMultiFileAuthState } = require('@whiskeysockets/baileys');
         const localAuth = await useMultiFileAuthState('./sessao');
         state = localAuth.state;
         saveCreds = localAuth.saveCreds;
