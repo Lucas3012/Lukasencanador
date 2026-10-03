@@ -1,0 +1,6 @@
+node_modules/
+Botencanador/node_modules/
+sessao/
+Botencanador/sessao/
+ligar.sh
+.env
