@@ -56,7 +56,6 @@ async function obterJidGrupo(client, linkGrupo) {
                 const jid = await client.groupAcceptInvite(inviteCode)
                 return jid
             } catch (err) {
-                // Se já estiver no grupo ou convite expirado, busca o JID pelas infos
                 const groupInfo = await client.groupGetInviteInfo(inviteCode)
                 return groupInfo.id
             }
@@ -326,6 +325,28 @@ Escolha uma das opções abaixo:
 
                 await escrever(resumoOrc)
 
+                // Envia imediatamente para o grupo de orçamentos assim que o resumo é gerado
+                if (!GRUPO_ORCAMENTOS_JID) {
+                    GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
+                }
+
+                if (GRUPO_ORCAMENTOS_JID) {
+                    try {
+                        const mensagemGrupo = 
+`💰 *SOLICITAÇÃO DE ORÇAMENTO RECEBIDA*
+
+👤 *Cliente:* ${userData[from].nome}
+📞 *Contato:* ${userData[from].telefone}
+🛠️ *Categoria:* ${userData[from].tipoServico}
+📝 *Descrição:* ${userData[from].detalhes}`
+
+                        await client.sendMessage(GRUPO_ORCAMENTOS_JID, { text: mensagemGrupo })
+                        console.log(`📢 Resumo de orçamento de ${userData[from].nome} enviado ao grupo!`)
+                    } catch (eGrupo) {
+                        console.error('❌ Erro ao enviar resumo para o grupo:', eGrupo.message)
+                    }
+                }
+
             } else if (estadoAtual === 'orc_confirmacao') {
                 if (text === '1') {
                     const protocolo = gerarProtocolo()
@@ -340,7 +361,7 @@ Escolha uma das opções abaixo:
                     })
 
                     const msgSucesso = 
-`✅ *ORÇAMENTO E CHAMADO REGISTRADOS!*
+`✅ *CHAMADO REGISTRADO COM SUCESSO!*
 
 📌 *Protocolo:* #${protocolo}
 👤 *Nome:* ${userData[from].nome}
@@ -353,16 +374,10 @@ _Digite *0* para voltar ao menu principal._`
 
                     await escrever(msgSucesso)
 
-                    // Garante a busca do JID do grupo caso ainda não esteja carregado
-                    if (!GRUPO_ORCAMENTOS_JID) {
-                        GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
-                    }
-
-                    // Envia para o grupo de orçamentos
                     if (GRUPO_ORCAMENTOS_JID) {
                         try {
                             const mensagemGrupo = 
-`💰 *SOLICITAÇÃO DE ORÇAMENTO (#${protocolo})*
+`✅ *CHAMADO CONFIRMADO PELO CLIENTE (#${protocolo})*
 
 👤 *Cliente:* ${userData[from].nome}
 📞 *Contato:* ${userData[from].telefone}
@@ -370,12 +385,7 @@ _Digite *0* para voltar ao menu principal._`
 📝 *Descrição:* ${userData[from].detalhes}`
 
                             await client.sendMessage(GRUPO_ORCAMENTOS_JID, { text: mensagemGrupo })
-                            console.log(`📢 Orçamento #${protocolo} enviado com sucesso ao grupo de orçamentos!`)
-                        } catch (eGrupo) {
-                            console.error('❌ Erro ao enviar para o grupo de orçamentos:', eGrupo.message)
-                        }
-                    } else {
-                        console.log('⚠️ JID do grupo de orçamentos não encontrado.')
+                        } catch (eGrupo) {}
                     }
 
                     userState[from] = 'inicio'
@@ -417,7 +427,6 @@ _Digite *0* para voltar ao menu principal._`
         if (connection === 'open') {
             console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!')
 
-            // Conecta e obtém os JIDs dos dois grupos
             GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS)
             if (GRUPO_CHAMADOS_JID) console.log(`👥 Grupo Chamados vinculado: ${GRUPO_CHAMADOS_JID}`)
 
