@@ -2,8 +2,6 @@ const { default: makeWASocket, fetchLatestBaileysVersion, Browsers, DisconnectRe
 const useMongoDBAuthState = require('./mongoAuth')
 const mongoose = require('mongoose')
 const pino = require('pino')
-const fs = require('fs')
-const path = require('path')
 
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = process.env.BOT_NUMBER || ''
@@ -20,44 +18,60 @@ let GRUPO_SUPORTE_JID = null
 let jaPareou = false
 let clienteAtual = null
 
-// Arquivos de persistência de dados na raiz do projeto
-const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
-const ARQUIVO_SUPORTE = path.join(__dirname, 'suporte.json')
+// --- SCHEMAS E MODELS DO MONGODB ---
+const chamadoSchema = new mongoose.Schema({
+    protocolo: { type: String, required: true, unique: true },
+    nome: String,
+    telefone: String,
+    endereco: String,
+    tipoServico: String,
+    detalhes: String,
+    origem: { type: String, default: 'Agendamento / Orçamento' },
+    status: { type: String, default: 'Pendente' },
+    createdAt: { type: Date, default: Date.now }
+})
 
-// Funções para gerenciar o chamados.json
-function carregarChamados() {
+const suporteSchema = new mongoose.Schema({
+    protocolo: { type: String, required: true, unique: true },
+    nome: String,
+    telefone: String,
+    detalhes: String,
+    origem: { type: String, default: 'Atendimento Suporte Humano' },
+    status: { type: String, default: 'Pendente' },
+    createdAt: { type: Date, default: Date.now }
+})
+
+const Chamado = mongoose.models.Chamado || mongoose.model('Chamado', chamadoSchema)
+const Suporte = mongoose.models.Suporte || mongoose.model('Suporte', suporteSchema)
+
+// --- FUNÇÕES DE BANCO DE DADOS ---
+async function salvarChamado(protocolo, dados) {
     try {
-        if (fs.existsSync(ARQUIVO_CHAMADOS)) {
-            return JSON.parse(fs.readFileSync(ARQUIVO_CHAMADOS, 'utf8'))
+        await Chamado.create({ protocolo, ...dados })
+    } catch (e) {
+        console.error('❌ Erro ao salvar chamado no MongoDB:', e.message)
+    }
+}
+
+async function salvarSuporte(protocolo, dados) {
+    try {
+        await Suporte.create({ protocolo, ...dados })
+    } catch (e) {
+        console.error('❌ Erro ao salvar suporte no MongoDB:', e.message)
+    }
+}
+
+async function buscarAtendimento(protocolo) {
+    try {
+        let res = await Chamado.findOne({ protocolo }).lean()
+        if (!res) {
+            res = await Suporte.findOne({ protocolo }).lean()
         }
-    } catch (e) {}
-    return {}
-}
-
-function salvarChamado(protocolo, dados) {
-    try {
-        const chamados = carregarChamados()
-        chamados[protocolo] = { ...dados, dataCriacao: new Date().toISOString() }
-        fs.writeFileSync(ARQUIVO_CHAMADOS, JSON.stringify(chamados, null, 2), 'utf8')
-    } catch (e) {}
-}
-
-// Funções para gerenciar o suporte.json
-function carregarSuporte() {
-    try {
-        if (fs.existsSync(ARQUIVO_SUPORTE)) {
-            return JSON.parse(fs.readFileSync(ARQUIVO_SUPORTE, 'utf8'))
-        }
-    } catch (e) {}
-    return {}
-}
-
-function salvarSuporte(protocolo, dados) {
-    try {
-        const suportes = carregarSuporte()
-        suportes[protocolo] = { ...dados, dataCriacao: new Date().toISOString() }
-        fs.writeFileSync(ARQUIVO_SUPORTE, JSON.stringify(suportes, null, 2), 'utf8')
-    } catch (e) {}
+        return res
+    } catch (e) {
+        console.error('❌ Erro ao buscar atendimento no MongoDB:', e.message)
+        return null
+    }
 }
 
 const userState = {} 
@@ -84,7 +98,7 @@ async function obterJidGrupo(client, linkGrupo) {
             }
         }
     } catch (e) {
-        console.error('⚠️ Erro ao vincular grupo:', linkGrupo, e.message)
+        console.error('⚠️️ Erro ao vincular grupo:', linkGrupo, e.message)
     }
     return null
 }
@@ -256,14 +270,11 @@ O que deseja fazer agora?
                     await mostrarMenuPrincipal(from)
                 }
 
-            // --- FLUXO OPÇÃO 8: CONSULTA DE STATUS ---
+            // --- FLUXO OPÇÃO 8: CONSULTA DE STATUS (MONGODB) ---
             } else if (estadoAtual === 'consultar_status') {
                 const protocolo = text.replace(/[^0-9]/g, '')
                 
-                const chamados = carregarChamados()
-                const suportes = carregarSuporte()
-
-                let itemEncontrado = chamados[protocolo] || suportes[protocolo]
+                const itemEncontrado = await buscarAtendimento(protocolo)
 
                 if (itemEncontrado) {
                     const statusAtual = itemEncontrado.status || 'Pendente'
@@ -304,7 +315,7 @@ _Digite *0* para voltar ao menu principal._`
                     await escrever('⚠️ Opção inválida. Digite *1* para Solicitar um agendamento ou *2* para Voltar ao Menu Principal.')
                 }
 
-            // --- FLUXO OPÇÃO 7: SUPORTE / ATENDENTE HUMANO ---
+            // --- FLUXO OPÇÃO 7: SUPORTE / ATENDENTE HUMANO (SALVA NO MONGODB) ---
             } else if (estadoAtual === 'sup_nome') {
                 userData[from].nome = text
                 userState[from] = 'sup_telefone'
@@ -317,8 +328,7 @@ _Digite *0* para voltar ao menu principal._`
                 userData[from].detalhes = text
                 const protocolo = gerarProtocolo()
 
-                // Salva o registro especificamente no suporte.json
-                salvarSuporte(protocolo, {
+                await salvarSuporte(protocolo, {
                     nome: userData[from].nome,
                     telefone: userData[from].telefone,
                     detalhes: userData[from].detalhes,
@@ -362,7 +372,7 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
                 userState[from] = 'inicio'
                 delete userData[from]
 
-            // --- FLUXO OPÇÃO 1: FORMULÁRIO COMPLETO ---
+            // --- FLUXO OPÇÃO 1: FORMULÁRIO COMPLETO (SALVA NO MONGODB) ---
             } else if (estadoAtual === 'form_nome') {
                 userData[from].nome = text
                 userState[from] = 'form_telefone'
@@ -383,7 +393,7 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
                 userData[from].detalhes = text
                 const protocolo = gerarProtocolo()
 
-                salvarChamado(protocolo, {
+                await salvarChamado(protocolo, {
                     nome: userData[from].nome,
                     telefone: userData[from].telefone,
                     endereco: userData[from].endereco,
@@ -399,7 +409,7 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
 👤 *Nome:* ${userData[from].nome}
 📞 *Telefone:* ${userData[from].telefone}
 🏠 *Endereço:* ${userData[from].endereco}
-🛠️️ *Tipo de Serviço:* ${userData[from].tipoServico}
+🛠️ *Tipo de Serviço:* ${userData[from].tipoServico}
 📝 *Detalhes:* ${userData[from].detalhes}
 
 Nossa equipe entrará em contato em breve para confirmar a visita!
@@ -505,7 +515,7 @@ Escolha uma das opções abaixo:
                 if (text === '1') {
                     const protocolo = gerarProtocolo()
 
-                    salvarChamado(protocolo, {
+                    await salvarChamado(protocolo, {
                         nome: userData[from].nome,
                         telefone: userData[from].telefone,
                         tipoServico: userData[from].tipoServico,
