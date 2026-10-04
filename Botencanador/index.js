@@ -11,9 +11,11 @@ const BOT_NUMBER = process.env.BOT_NUMBER || ''
 // Links dos grupos do WhatsApp
 const LINK_GRUPO_CHAMADOS = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n'
 const LINK_GRUPO_ORCAMENTOS = 'https://chat.whatsapp.com/HYFutIc2BYi6I0EyM6sBsQ'
+const LINK_GRUPO_SUPORTE = 'https://chat.whatsapp.com/F0UYp2zG5pTAgtSE0dwctX'
 
 let GRUPO_CHAMADOS_JID = null
 let GRUPO_ORCAMENTOS_JID = null
+let GRUPO_SUPORTE_JID = null
 
 let jaPareou = false
 let clienteAtual = null
@@ -224,7 +226,8 @@ O que deseja fazer agora?
                 } else if (text === '6' || textNorm.includes('horario')) {
                     await escrever('⏰ *Horário de Funcionamento:*\nSegunda a Sexta: 08:00 às 18:00\nSábado: 08:00 às 12:00\nAtendimento emergencial 24h sob consulta.')
                 } else if (text === '7' || textNorm.includes('atendente')) {
-                    await escrever('👨‍🔧 Um atendente humano responderá à sua mensagem em instantes. Por favor, aguarde!')
+                    userState[from] = 'sup_nome'
+                    await escrever('👨‍🔧 *Atendimento com Atendente (1/3)*\n\nPara direcionar o seu atendimento, digite o seu *Nome completo*:\n\n_(Digite 0 a qualquer momento para cancelar)_')
                 } else if (text === '8' || textNorm.includes('status')) {
                     await escrever('🔍 Para verificar o status, digite o *número do protocolo* do seu chamado:')
                 } else {
@@ -243,6 +246,63 @@ O que deseja fazer agora?
                 } else {
                     await escrever('⚠️ Opção inválida. Digite *1* para Solicitar um agendamento ou *2* para Voltar ao Menu Principal.')
                 }
+
+            // --- FLUXO OPÇÃO 7: SUPORTE / ATENDENTE HUMANO ---
+            } else if (estadoAtual === 'sup_nome') {
+                userData[from].nome = text
+                userState[from] = 'sup_telefone'
+                await escrever(`Prazer, *${text}*!\n\n📞 *(2/3)* Digite o seu *Telefone/WhatsApp* com DDD:`)
+            } else if (estadoAtual === 'sup_telefone') {
+                userData[from].telefone = text
+                userState[from] = 'sup_descricao'
+                await escrever('📝 *(3/3)* Por favor, descreva em poucas palavras o motivo do seu contato ou a sua dúvida:')
+            } else if (estadoAtual === 'sup_descricao') {
+                userData[from].detalhes = text
+                const protocolo = gerarProtocolo()
+
+                salvarChamado(protocolo, {
+                    nome: userData[from].nome,
+                    telefone: userData[from].telefone,
+                    detalhes: userData[from].detalhes,
+                    origem: 'Atendimento Suporte Humano',
+                    status: 'Pendente'
+                })
+
+                const msgCliente = 
+`👨‍🔧 *SOLICITAÇÃO DE ATENDIMENTO REGISTRADA!*
+
+📌 *Protocolo:* #${protocolo}
+👤 *Nome:* ${userData[from].nome}
+📞 *Telefone:* ${userData[from].telefone}
+📝 *Assunto:* ${userData[from].detalhes}
+
+Um atendente humano já recebeu os seus dados e responderá em breve!
+_Digite *0* a qualquer momento para voltar ao menu principal._`
+
+                await escrever(msgCliente)
+
+                if (!GRUPO_SUPORTE_JID) {
+                    GRUPO_SUPORTE_JID = await obterJidGrupo(client, LINK_GRUPO_SUPORTE)
+                }
+
+                if (GRUPO_SUPORTE_JID) {
+                    try {
+                        const mensagemGrupo = 
+`🆘 *SOLICITAÇÃO DE SUPORTE HUMANO (#${protocolo})*
+
+👤 *Cliente:* ${userData[from].nome}
+📞 *Contato:* ${userData[from].telefone}
+📝 *Descrição:* ${userData[from].detalhes}`
+
+                        await client.sendMessage(GRUPO_SUPORTE_JID, { text: mensagemGrupo })
+                        console.log(`📢 Solicitação de suporte #${protocolo} enviada ao grupo!`)
+                    } catch (eGrupo) {
+                        console.error('❌ Erro ao enviar para o grupo de suporte:', eGrupo.message)
+                    }
+                }
+
+                userState[from] = 'inicio'
+                delete userData[from]
 
             // --- FLUXO OPÇÃO 1: FORMULÁRIO COMPLETO ---
             } else if (estadoAtual === 'form_nome') {
@@ -468,6 +528,9 @@ _Digite *0* para voltar ao menu principal._`
 
             GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
             if (GRUPO_ORCAMENTOS_JID) console.log(`👥 Grupo Orçamentos vinculado: ${GRUPO_ORCAMENTOS_JID}`)
+
+            GRUPO_SUPORTE_JID = await obterJidGrupo(client, LINK_GRUPO_SUPORTE)
+            if (GRUPO_SUPORTE_JID) console.log(`👥 Grupo Suporte vinculado: ${GRUPO_SUPORTE_JID}`)
         }
         
         if (connection === 'close') {
