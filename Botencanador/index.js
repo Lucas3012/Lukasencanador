@@ -20,8 +20,11 @@ let GRUPO_SUPORTE_JID = null
 let jaPareou = false
 let clienteAtual = null
 
+// Arquivos de persistência de dados na raiz do projeto
 const ARQUIVO_CHAMADOS = path.join(__dirname, 'chamados.json')
+const ARQUIVO_SUPORTE = path.join(__dirname, 'suporte.json')
 
+// Funções para gerenciar o chamados.json
 function carregarChamados() {
     try {
         if (fs.existsSync(ARQUIVO_CHAMADOS)) {
@@ -36,6 +39,24 @@ function salvarChamado(protocolo, dados) {
         const chamados = carregarChamados()
         chamados[protocolo] = { ...dados, dataCriacao: new Date().toISOString() }
         fs.writeFileSync(ARQUIVO_CHAMADOS, JSON.stringify(chamados, null, 2), 'utf8')
+    } catch (e) {}
+}
+
+// Funções para gerenciar o suporte.json
+function carregarSuporte() {
+    try {
+        if (fs.existsSync(ARQUIVO_SUPORTE)) {
+            return JSON.parse(fs.readFileSync(ARQUIVO_SUPORTE, 'utf8'))
+        }
+    } catch (e) {}
+    return {}
+}
+
+function salvarSuporte(protocolo, dados) {
+    try {
+        const suportes = carregarSuporte()
+        suportes[protocolo] = { ...dados, dataCriacao: new Date().toISOString() }
+        fs.writeFileSync(ARQUIVO_SUPORTE, JSON.stringify(suportes, null, 2), 'utf8')
     } catch (e) {}
 }
 
@@ -229,9 +250,45 @@ O que deseja fazer agora?
                     userState[from] = 'sup_nome'
                     await escrever('👨‍🔧 *Atendimento com Atendente (1/3)*\n\nPara direcionar o seu atendimento, digite o seu *Nome completo*:\n\n_(Digite 0 a qualquer momento para cancelar)_')
                 } else if (text === '8' || textNorm.includes('status')) {
-                    await escrever('🔍 Para verificar o status, digite o *número do protocolo* do seu chamado:')
+                    userState[from] = 'consultar_status'
+                    await escrever('🔍 *Consulta de Status*\n\nPor favor, digite o *número do protocolo* de 4 dígitos do seu chamado:\n\n_(Digite 0 para cancelar)_')
                 } else {
                     await mostrarMenuPrincipal(from)
+                }
+
+            // --- FLUXO OPÇÃO 8: CONSULTA DE STATUS ---
+            } else if (estadoAtual === 'consultar_status') {
+                const protocolo = text.replace(/[^0-9]/g, '')
+                
+                const chamados = carregarChamados()
+                const suportes = carregarSuporte()
+
+                let itemEncontrado = chamados[protocolo] || suportes[protocolo]
+
+                if (itemEncontrado) {
+                    const statusAtual = itemEncontrado.status || 'Pendente'
+                    let emojiStatus = '⏳'
+                    if (statusAtual.toLowerCase().includes('recebido') || statusAtual.toLowerCase().includes('concluido')) emojiStatus = '✅'
+                    if (statusAtual.toLowerCase().includes('cancelado')) emojiStatus = '❌'
+
+                    const respostaStatus = 
+`🔍 *STATUS DO ATENDIMENTO*
+
+📌 *Protocolo:* #${protocolo}
+👤 *Nome:* ${itemEncontrado.nome || 'N/A'}
+📞 *Contato:* ${itemEncontrado.telefone || 'N/A'}
+🛠️ *Tipo/Origem:* ${itemEncontrado.tipoServico || itemEncontrado.origem || 'Atendimento'}
+📝 *Detalhes:* ${itemEncontrado.detalhes || 'N/A'}
+
+${emojiStatus} *Status Atual:* ${statusAtual}
+
+_Digite *0* para voltar ao menu principal._`
+
+                    await escrever(respostaStatus)
+                    userState[from] = 'inicio'
+                    delete userData[from]
+                } else {
+                    await escrever(`❌ *Protocolo #${protocolo} não encontrado!*\n\nPor favor, verifique o número digitado e tente novamente, ou digite *0* para voltar ao menu principal.`)
                 }
 
             // --- FLUXO OPÇÃO 3: TABELA POR CATEGORIA ---
@@ -260,7 +317,8 @@ O que deseja fazer agora?
                 userData[from].detalhes = text
                 const protocolo = gerarProtocolo()
 
-                salvarChamado(protocolo, {
+                // Salva o registro especificamente no suporte.json
+                salvarSuporte(protocolo, {
                     nome: userData[from].nome,
                     telefone: userData[from].telefone,
                     detalhes: userData[from].detalhes,
@@ -341,7 +399,7 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
 👤 *Nome:* ${userData[from].nome}
 📞 *Telefone:* ${userData[from].telefone}
 🏠 *Endereço:* ${userData[from].endereco}
-🛠️ *Tipo de Serviço:* ${userData[from].tipoServico}
+🛠️️ *Tipo de Serviço:* ${userData[from].tipoServico}
 📝 *Detalhes:* ${userData[from].detalhes}
 
 Nossa equipe entrará em contato em breve para confirmar a visita!
