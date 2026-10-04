@@ -34,7 +34,7 @@ if (MONGO_URI) {
   console.log('⚠️ MONGO_URI não definida. Operando apenas com ficheiros JSON locais.');
 }
 
-// Schemas do Mongoose (Usando Schema.Types.Mixed para aceitar IDs Numéricos e String)
+// Schemas do Mongoose
 const ChamadoSchema = new mongoose.Schema({
   id: mongoose.Schema.Types.Mixed,
   protocolo: String,
@@ -74,6 +74,19 @@ const writeJSON = (filePath, data) => {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 };
 
+// Normaliza o array para que todo objeto tenha a propriedade "id"
+const normalizeData = (list) => {
+  if (!Array.isArray(list)) return [];
+  return list.map(item => {
+    const idVal = item.id || item._id;
+    return {
+      ...item,
+      id: idVal ? String(idVal) : String(Date.now()),
+      _id: item._id ? String(item._id) : undefined
+    };
+  });
+};
+
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -96,7 +109,7 @@ app.get('/api/admin/pedidos', authenticateToken, async (req, res) => {
     if (mongoose.connection.readyState === 1) {
       const chamadosMongo = await ChamadoModel.find().lean();
       if (Array.isArray(chamadosMongo) && chamadosMongo.length > 0) {
-        return res.json(chamadosMongo);
+        return res.json(normalizeData(chamadosMongo));
       }
     }
   } catch (err) {
@@ -104,7 +117,7 @@ app.get('/api/admin/pedidos', authenticateToken, async (req, res) => {
   }
   
   const chamados = readJSON(chamadosPath);
-  res.json(chamados);
+  res.json(normalizeData(chamados));
 });
 
 app.post('/api/contacto', async (req, res) => {
@@ -145,7 +158,7 @@ app.patch('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
 
   let chamados = readJSON(chamadosPath);
   if (Array.isArray(chamados)) {
-    const index = chamados.findIndex(p => String(p.id) === String(id));
+    const index = chamados.findIndex(p => String(p.id) === String(id) || String(p._id) === String(id));
     if (index !== -1) {
       chamados[index].status = status;
       writeJSON(chamadosPath, chamados);
@@ -155,7 +168,11 @@ app.patch('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
   if (mongoose.connection.readyState === 1) {
     try {
       const parsedId = isNaN(id) ? id : Number(id);
-      await ChamadoModel.updateOne({ $or: [{ id: parsedId }, { id: String(id) }] }, { status });
+      const conditions = [{ id: parsedId }, { id: String(id) }];
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        conditions.push({ _id: id });
+      }
+      await ChamadoModel.updateOne({ $or: conditions }, { status });
     } catch (err) {
       console.error("Erro ao atualizar status no MongoDB:", err);
     }
@@ -169,14 +186,18 @@ app.delete('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
 
   let chamados = readJSON(chamadosPath);
   if (Array.isArray(chamados)) {
-    chamados = chamados.filter(p => String(p.id) !== String(id));
+    chamados = chamados.filter(p => String(p.id) !== String(id) && String(p._id) !== String(id));
     writeJSON(chamadosPath, chamados);
   }
 
   if (mongoose.connection.readyState === 1) {
     try {
       const parsedId = isNaN(id) ? id : Number(id);
-      await ChamadoModel.deleteOne({ $or: [{ id: parsedId }, { id: String(id) }] });
+      const conditions = [{ id: parsedId }, { id: String(id) }];
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        conditions.push({ _id: id });
+      }
+      await ChamadoModel.deleteOne({ $or: conditions });
     } catch (err) {
       console.error("Erro ao eliminar chamado no MongoDB:", err);
     }
@@ -198,7 +219,7 @@ app.get('/api/suporte', async (req, res) => {
       }
       const suporteMongo = await SuporteModel.find(query).lean();
       if (Array.isArray(suporteMongo) && suporteMongo.length > 0) {
-        return res.json(suporteMongo);
+        return res.json(normalizeData(suporteMongo));
       }
     } catch (err) {
       console.error("Erro ao ler suporte do Mongo:", err);
@@ -211,10 +232,10 @@ app.get('/api/suporte', async (req, res) => {
       String(s.id).includes(protocolo) || 
       (s.protocolo && String(s.protocolo).includes(protocolo))
     );
-    return res.json(filtrado);
+    return res.json(normalizeData(filtrado));
   }
 
-  res.json(suporteList);
+  res.json(normalizeData(suporteList));
 });
 
 app.post('/api/suporte', async (req, res) => {
@@ -252,7 +273,7 @@ app.patch('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
 
   let suporteList = readJSON(suportePath);
   if (Array.isArray(suporteList)) {
-    const index = suporteList.findIndex(s => String(s.id) === String(id));
+    const index = suporteList.findIndex(s => String(s.id) === String(id) || String(s._id) === String(id));
     if (index !== -1) {
       suporteList[index].status = status;
       writeJSON(suportePath, suporteList);
@@ -262,7 +283,11 @@ app.patch('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
   if (mongoose.connection.readyState === 1) {
     try {
       const parsedId = isNaN(id) ? id : Number(id);
-      await SuporteModel.updateOne({ $or: [{ id: parsedId }, { id: String(id) }] }, { status });
+      const conditions = [{ id: parsedId }, { id: String(id) }];
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        conditions.push({ _id: id });
+      }
+      await SuporteModel.updateOne({ $or: conditions }, { status });
     } catch (err) {
       console.error("Erro ao atualizar suporte no MongoDB:", err);
     }
@@ -276,14 +301,18 @@ app.delete('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
 
   let suporteList = readJSON(suportePath);
   if (Array.isArray(suporteList)) {
-    suporteList = suporteList.filter(s => String(s.id) !== String(id));
+    suporteList = suporteList.filter(s => String(s.id) !== String(id) && String(s._id) !== String(id));
     writeJSON(suportePath, suporteList);
   }
 
   if (mongoose.connection.readyState === 1) {
     try {
       const parsedId = isNaN(id) ? id : Number(id);
-      await SuporteModel.deleteOne({ $or: [{ id: parsedId }, { id: String(id) }] });
+      const conditions = [{ id: parsedId }, { id: String(id) }];
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        conditions.push({ _id: id });
+      }
+      await SuporteModel.deleteOne({ $or: conditions });
     } catch (err) {
       console.error("Erro ao eliminar suporte no MongoDB:", err);
     }
