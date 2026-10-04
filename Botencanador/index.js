@@ -53,16 +53,16 @@ async function obterJidGrupo(client, linkGrupo) {
         if (codeMatch && codeMatch[1]) {
             const inviteCode = codeMatch[1]
             try {
-                return await client.groupAcceptInvite(inviteCode)
+                const jid = await client.groupAcceptInvite(inviteCode)
+                return jid
             } catch (err) {
-                if (err.data === 409 || err.message?.includes('already')) {
-                    const groupInfo = await client.groupGetInviteInfo(inviteCode)
-                    return groupInfo.id
-                }
+                // Se já estiver no grupo ou convite expirado, busca o JID pelas infos
+                const groupInfo = await client.groupGetInviteInfo(inviteCode)
+                return groupInfo.id
             }
         }
     } catch (e) {
-        console.error('⚠️ Erro ao vincular ao grupo:', e.message)
+        console.error('⚠️ Erro ao vincular grupo:', linkGrupo, e.message)
     }
     return null
 }
@@ -266,7 +266,10 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
 📝 *Detalhes:* ${userData[from].detalhes}`
 
                         await client.sendMessage(GRUPO_CHAMADOS_JID, { text: mensagemGrupo })
-                    } catch (eGrupo) {}
+                        console.log(`📢 Chamado #${protocolo} enviado ao grupo de chamados!`)
+                    } catch (eGrupo) {
+                        console.error('❌ Erro ao enviar para o grupo de chamados:', eGrupo.message)
+                    }
                 }
 
                 userState[from] = 'inicio'
@@ -350,7 +353,12 @@ _Digite *0* para voltar ao menu principal._`
 
                     await escrever(msgSucesso)
 
-                    // Envia notificação diretamente para o grupo de orçamentos
+                    // Garante a busca do JID do grupo caso ainda não esteja carregado
+                    if (!GRUPO_ORCAMENTOS_JID) {
+                        GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
+                    }
+
+                    // Envia para o grupo de orçamentos
                     if (GRUPO_ORCAMENTOS_JID) {
                         try {
                             const mensagemGrupo = 
@@ -362,7 +370,12 @@ _Digite *0* para voltar ao menu principal._`
 📝 *Descrição:* ${userData[from].detalhes}`
 
                             await client.sendMessage(GRUPO_ORCAMENTOS_JID, { text: mensagemGrupo })
-                        } catch (eGrupo) {}
+                            console.log(`📢 Orçamento #${protocolo} enviado com sucesso ao grupo de orçamentos!`)
+                        } catch (eGrupo) {
+                            console.error('❌ Erro ao enviar para o grupo de orçamentos:', eGrupo.message)
+                        }
+                    } else {
+                        console.log('⚠️ JID do grupo de orçamentos não encontrado.')
                     }
 
                     userState[from] = 'inicio'
@@ -404,7 +417,7 @@ _Digite *0* para voltar ao menu principal._`
         if (connection === 'open') {
             console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!')
 
-            // Conecta aos dois grupos
+            // Conecta e obtém os JIDs dos dois grupos
             GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS)
             if (GRUPO_CHAMADOS_JID) console.log(`👥 Grupo Chamados vinculado: ${GRUPO_CHAMADOS_JID}`)
 
