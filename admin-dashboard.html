@@ -91,10 +91,20 @@
     <div id="secaoSuporte" style="display: none;">
       <div class="title-section">
         <h1><i class="fa-solid fa-headset"></i> Suporte e Reclamações</h1>
+        <button class="btn-refresh" onclick="carregarSuporte()"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+      </div>
+
+      <!-- DASHBOARD SUPORTE -->
+      <div class="metrics-grid">
+        <div class="card"><div class="card-value card-total" id="totalSuporte">0</div><div class="card-label">Total Reclamações</div></div>
+        <div class="card"><div class="card-value card-pendente" id="suportePendente">0</div><div class="card-label">Pendentes</div></div>
+        <div class="card"><div class="card-value card-andamento" id="suporteAndamento">0</div><div class="card-label">Em Andamento</div></div>
+        <div class="card"><div class="card-value card-concluido" id="suporteConcluido">0</div><div class="card-label">Resolvidos</div></div>
+        <div class="card"><div class="card-value card-cancelado" id="suporteCancelado">0</div><div class="card-label">Cancelados</div></div>
       </div>
 
       <div class="search-box">
-        <input type="text" id="pesquisaSuporte" placeholder="Pesquisar por protocolo...">
+        <input type="text" id="pesquisaSuporte" placeholder="Pesquisar por protocolo..." onkeyup="if(event.key === 'Enter') carregarSuporte()">
         <button class="btn-refresh" onclick="carregarSuporte()">Pesquisar</button>
       </div>
 
@@ -131,6 +141,7 @@
       document.getElementById('btnTabSuporte').classList.toggle('active', aba === 'suporte');
 
       if (aba === 'suporte') carregarSuporte();
+      else carregarPedidos();
     }
 
     async function carregarPedidos() {
@@ -146,6 +157,11 @@
 
         if (!Array.isArray(chamados) || chamados.length === 0) {
           tbody.innerHTML = '<tr><td colspan="8" class="no-data">Nenhum chamado registado.</td></tr>';
+          document.getElementById('totalPedidos').innerText = 0;
+          document.getElementById('pedidosPendente').innerText = 0;
+          document.getElementById('pedidosAndamento').innerText = 0;
+          document.getElementById('pedidosConcluido').innerText = 0;
+          document.getElementById('pedidosCancelado').innerText = 0;
           return;
         }
 
@@ -195,11 +211,23 @@
 
         if (!Array.isArray(suportes) || suportes.length === 0) {
           tbody.innerHTML = '<tr><td colspan="7" class="no-data">Nenhuma reclamação registada.</td></tr>';
+          document.getElementById('totalSuporte').innerText = 0;
+          document.getElementById('suportePendente').innerText = 0;
+          document.getElementById('suporteAndamento').innerText = 0;
+          document.getElementById('suporteConcluido').innerText = 0;
+          document.getElementById('suporteCancelado').innerText = 0;
           return;
         }
 
+        document.getElementById('totalSuporte').innerText = suportes.length;
+        document.getElementById('suportePendente').innerText = suportes.filter(s => (!s.status || s.status === 'Pendente')).length;
+        document.getElementById('suporteAndamento').innerText = suportes.filter(s => s.status === 'Em Andamento').length;
+        document.getElementById('suporteConcluido').innerText = suportes.filter(s => s.status === 'Concluído' || s.status === 'Resolvido').length;
+        document.getElementById('suporteCancelado').innerText = suportes.filter(s => s.status === 'Cancelado').length;
+
         tbody.innerHTML = '';
         suportes.slice().reverse().forEach((s) => {
+          const currentStatus = s.status || 'Pendente';
           tbody.innerHTML += `
             <tr>
               <td><strong>#${s.protocolo || String(s.id).slice(-4)}</strong></td>
@@ -207,7 +235,14 @@
               <td>${s.nome || '-'}</td>
               <td>${s.telefone || '-'}</td>
               <td>${s.detalhes || s.mensagem || '-'}</td>
-              <td>${s.status || 'Pendente'}</td>
+              <td>
+                <select class="status-select" onchange="atualizarStatusSuporte('${s.id}', this.value)">
+                  <option value="Pendente" ${currentStatus === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                  <option value="Em Andamento" ${currentStatus === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
+                  <option value="Concluído" ${currentStatus === 'Concluído' || currentStatus === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
+                  <option value="Cancelado" ${currentStatus === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+                </select>
+              </td>
               <td>
                 <button class="btn-delete" onclick="eliminarSuporte('${s.id}')"><i class="fa-solid fa-trash"></i></button>
               </td>
@@ -226,6 +261,15 @@
         body: JSON.stringify({ status })
       });
       carregarPedidos();
+    }
+
+    async function atualizarStatusSuporte(id, status) {
+      await fetch(`./api/admin/suporte/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ status })
+      });
+      carregarSuporte();
     }
 
     async function eliminarPedido(id) {
