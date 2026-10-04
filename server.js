@@ -18,7 +18,7 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-// Servir arquivos estáticos do site
+// Servir arquivos estáticos
 app.use(express.static(__dirname));
 if (fs.existsSync(path.join(__dirname, 'public'))) {
   app.use(express.static(path.join(__dirname, 'public')));
@@ -99,7 +99,7 @@ app.post('/chat', (req, res) => {
   }
 });
 
-// Rotas da API Admin e Contacto
+// Autenticação Admin
 app.post('/api/admin/login', (req, res) => {
   const usuarioInput = req.body.usuario || req.body.username;
   const senhaInput = req.body.senha || req.body.password;
@@ -111,9 +111,7 @@ app.post('/api/admin/login', (req, res) => {
     return res.status(401).json({ sucesso: false, success: false, mensagem: 'Usuário não encontrado' });
   }
 
-  const senhaValida = (admin.password === senhaInput);
-
-  if (senhaValida) {
+  if (admin.password === senhaInput) {
     const token = jwt.sign({ username: admin.username }, SECRET_KEY, { expiresIn: '8h' });
     return res.json({ sucesso: true, success: true, token });
   }
@@ -121,11 +119,15 @@ app.post('/api/admin/login', (req, res) => {
   res.status(401).json({ sucesso: false, success: false, mensagem: 'Senha incorreta' });
 });
 
+// --- ROTAS DE PEDIDOS / CHAMADOS ---
+
+// Obter todos os pedidos (Admin)
 app.get('/api/admin/pedidos', authenticateToken, (req, res) => {
   const pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
   res.json(pedidos);
 });
 
+// Novo pedido público
 app.post('/api/contacto', (req, res) => {
   const { nome, telefone, servico, mensagem } = req.body;
   if (!nome || !telefone || !servico) {
@@ -148,6 +150,7 @@ app.post('/api/contacto', (req, res) => {
   res.json({ sucesso: true, pedido: novoPedido });
 });
 
+// Atualizar status de um pedido
 app.patch('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -160,6 +163,49 @@ app.patch('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
     return res.json({ sucesso: true, pedido: pedidos[index] });
   }
   res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado' });
+});
+
+// Eliminar pedido (Admin)
+app.delete('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  let pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
+  const inicial = pedidos.length;
+  pedidos = pedidos.filter(p => p.id != id);
+
+  if (pedidos.length < inicial) {
+    writeJSON(path.join(__dirname, 'pedidos.json'), pedidos);
+    return res.json({ sucesso: true, mensagem: 'Pedido eliminado com sucesso' });
+  }
+  res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado' });
+});
+
+// --- ROTAS DE SUPORTE ---
+
+// Obter lista de suporte (Pública ou por ID/Protocolo)
+app.get('/api/suporte', (req, res) => {
+  const { protocolo } = req.query;
+  const suporteList = readJSON(path.join(__dirname, 'suporte.json'));
+
+  if (protocolo) {
+    const filtrado = suporteList.filter(s => String(s.id).includes(protocolo) || (s.protocolo && s.protocolo.includes(protocolo)));
+    return res.json(filtrado);
+  }
+
+  res.json(suporteList);
+});
+
+// Eliminar item de suporte (Admin)
+app.delete('/api/admin/suporte/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  let suporteList = readJSON(path.join(__dirname, 'suporte.json'));
+  const inicial = suporteList.length;
+  suporteList = suporteList.filter(s => s.id != id);
+
+  if (suporteList.length < inicial) {
+    writeJSON(path.join(__dirname, 'suporte.json'), suporteList);
+    return res.json({ sucesso: true, mensagem: 'Atendimento de suporte eliminado com sucesso' });
+  }
+  res.status(404).json({ sucesso: false, mensagem: 'Registo de suporte não encontrado' });
 });
 
 // Inicialização do servidor + Execução do Bot
