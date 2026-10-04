@@ -192,7 +192,31 @@ _Digite a opção desejada (1 a 8):_`
                     userState[from] = 'orc_nome'
                     await escrever('💰 *Solicitação de Orçamento (1/4)*\n\nPor favor, digite o seu *Nome completo*:\n\n_(Digite 0 a qualquer momento para cancelar)_')
                 } else if (text === '3' || textNorm.includes('tabela')) {
-                    await escrever('🛠️ *Serviços Prestados:*\n- Desentupimento em geral\n- Reparo de vazamentos\n- Instalação de louças e metais\n- Manutenção em caixa d\'água\n\nDigite *0* para voltar ao menu.')
+                    userState[from] = 'tabela_opcoes'
+                    const tabelaTexto = 
+`📊 *TABELA DE SERVIÇOS POR CATEGORIA*
+
+🛠️ *1. DESENTUPIMENTOS*
+• Pias, Ralos e Vasos Sanitários
+• Caixas de Gordura e Colunas
+
+💧 *2. VAZAMENTOS & REPAROS*
+• Caça Vazamentos (Detecção)
+• Troca de Reparadores, Torneiras e Sifões
+• Conserto de Canos Rompidos
+
+📦 *3. CAIXA D'ÁGUA & BOMBAS*
+• Limpeza e Higienização
+• Instalação de Caixas d'água e Válvulas Alternadoras
+• Manutenção de Bombas d'água
+
+---
+O que deseja fazer agora?
+
+1️⃣ *Solicitar um agendamento*
+2️⃣ *Voltar ao Menu Principal*`
+
+                    await escrever(tabelaTexto)
                 } else if (text === '4' || textNorm.includes('regiao')) {
                     await escrever('📍 Atendemos em Itabuna, Ilhéus e região. Taxa de visita a partir de R$ 50,00.')
                 } else if (text === '5' || textNorm.includes('pagamento')) {
@@ -205,6 +229,19 @@ _Digite a opção desejada (1 a 8):_`
                     await escrever('🔍 Para verificar o status, digite o *número do protocolo* do seu chamado:')
                 } else {
                     await mostrarMenuPrincipal(from)
+                }
+
+            // --- FLUXO OPÇÃO 3: TABELA POR CATEGORIA ---
+            } else if (estadoAtual === 'tabela_opcoes') {
+                if (text === '1') {
+                    userState[from] = 'form_nome'
+                    await escrever('📋 *Formulário de Agendamento (1/5)*\n\nPor favor, digite o seu *Nome completo*:\n\n_(Digite 0 a qualquer momento para cancelar)_')
+                } else if (text === '2') {
+                    userState[from] = 'inicio'
+                    delete userData[from]
+                    await mostrarMenuPrincipal(from)
+                } else {
+                    await escrever('⚠️ Opção inválida. Digite *1* para Solicitar um agendamento ou *2* para Voltar ao Menu Principal.')
                 }
 
             // --- FLUXO OPÇÃO 1: FORMULÁRIO COMPLETO ---
@@ -325,7 +362,6 @@ Escolha uma das opções abaixo:
 
                 await escrever(resumoOrc)
 
-                // Envia imediatamente para o grupo de orçamentos assim que o resumo é gerado
                 if (!GRUPO_ORCAMENTOS_JID) {
                     GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
                 }
