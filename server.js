@@ -34,9 +34,9 @@ if (MONGO_URI) {
   console.log('⚠️ MONGO_URI não definida. Operando apenas com ficheiros JSON locais.');
 }
 
-// Schemas do Mongoose
+// Schemas do Mongoose (Usando Schema.Types.Mixed para aceitar IDs Numéricos e String)
 const ChamadoSchema = new mongoose.Schema({
-  id: Number,
+  id: mongoose.Schema.Types.Mixed,
   protocolo: String,
   nome: String,
   telefone: String,
@@ -47,7 +47,7 @@ const ChamadoSchema = new mongoose.Schema({
 });
 
 const SuporteSchema = new mongoose.Schema({
-  id: Number,
+  id: mongoose.Schema.Types.Mixed,
   protocolo: String,
   nome: String,
   telefone: String,
@@ -89,7 +89,7 @@ const authenticateToken = (req, res, next) => {
 const chamadosPath = path.join(__dirname, 'Botencanador', 'chamados.json');
 const suportePath = path.join(__dirname, 'suporte.json');
 
-// --- ROTAS DE CHAMADOS (OPÇÃO 1) ---
+// --- ROTAS DE CHAMADOS ---
 
 app.get('/api/admin/pedidos', authenticateToken, async (req, res) => {
   try {
@@ -154,7 +154,8 @@ app.patch('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
 
   if (mongoose.connection.readyState === 1) {
     try {
-      await ChamadoModel.updateOne({ id: Number(id) }, { status });
+      const parsedId = isNaN(id) ? id : Number(id);
+      await ChamadoModel.updateOne({ $or: [{ id: parsedId }, { id: String(id) }] }, { status });
     } catch (err) {
       console.error("Erro ao atualizar status no MongoDB:", err);
     }
@@ -174,7 +175,8 @@ app.delete('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
 
   if (mongoose.connection.readyState === 1) {
     try {
-      await ChamadoModel.deleteOne({ id: Number(id) });
+      const parsedId = isNaN(id) ? id : Number(id);
+      await ChamadoModel.deleteOne({ $or: [{ id: parsedId }, { id: String(id) }] });
     } catch (err) {
       console.error("Erro ao eliminar chamado no MongoDB:", err);
     }
@@ -183,7 +185,7 @@ app.delete('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
   res.json({ sucesso: true, mensagem: 'Chamado eliminado com sucesso' });
 });
 
-// --- ROTAS DE SUPORTE (OPÇÃO 7) ---
+// --- ROTAS DE SUPORTE ---
 
 app.get('/api/suporte', async (req, res) => {
   const { protocolo } = req.query;
@@ -259,7 +261,8 @@ app.patch('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
 
   if (mongoose.connection.readyState === 1) {
     try {
-      await SuporteModel.updateOne({ id: Number(id) }, { status });
+      const parsedId = isNaN(id) ? id : Number(id);
+      await SuporteModel.updateOne({ $or: [{ id: parsedId }, { id: String(id) }] }, { status });
     } catch (err) {
       console.error("Erro ao atualizar suporte no MongoDB:", err);
     }
@@ -279,7 +282,8 @@ app.delete('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
 
   if (mongoose.connection.readyState === 1) {
     try {
-      await SuporteModel.deleteOne({ id: Number(id) });
+      const parsedId = isNaN(id) ? id : Number(id);
+      await SuporteModel.deleteOne({ $or: [{ id: parsedId }, { id: String(id) }] });
     } catch (err) {
       console.error("Erro ao eliminar suporte no MongoDB:", err);
     }
