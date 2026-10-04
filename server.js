@@ -49,7 +49,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Lógica do Chatbot por Regras Fixas
+// Lógica do Chatbot por Regras Fixas (Site)
 function processarMensagemChat(mensagem) {
   if (!mensagem) return "Como posso ajudar você hoje?";
 
@@ -108,83 +108,83 @@ app.post('/api/admin/login', (req, res) => {
   const admin = admins.find(a => a.username === usuarioInput);
 
   if (!admin) {
-    return res.status(401).json({ sucesso: false, success: false, mensagem: 'Usuário não encontrado' });
+    return res.status(401).json({ sucesso: false, mensagem: 'Usuário não encontrado' });
   }
 
   if (admin.password === senhaInput) {
     const token = jwt.sign({ username: admin.username }, SECRET_KEY, { expiresIn: '8h' });
-    return res.json({ sucesso: true, success: true, token });
+    return res.json({ sucesso: true, token });
   }
 
-  res.status(401).json({ sucesso: false, success: false, mensagem: 'Senha incorreta' });
+  res.status(401).json({ sucesso: false, mensagem: 'Senha incorreta' });
 });
 
-// --- ROTAS DE PEDIDOS / CHAMADOS ---
+// --- ROTAS DE CHAMADOS (OPÇÃO 1 DO BOT - chamados.json) ---
+
+const chamadosPath = path.join(__dirname, 'Botencanador', 'chamados.json');
 
 app.get('/api/admin/pedidos', authenticateToken, (req, res) => {
-  const pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
-  res.json(pedidos);
+  const chamados = readJSON(chamadosPath);
+  res.json(chamados);
 });
 
 app.post('/api/contacto', (req, res) => {
-  const { nome, telefone, servico, mensagem } = req.body;
-  if (!nome || !telefone || !servico) {
+  const { nome, telefone, servico, mensagem, endereco } = req.body;
+  if (!nome || !telefone) {
     return res.status(400).json({ sucesso: false, mensagem: 'Preencha os campos obrigatórios' });
   }
 
-  const pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
-  const novoPedido = {
+  const chamados = readJSON(chamadosPath);
+  const novoChamado = {
     id: Date.now(),
+    protocolo: String(Math.floor(1000 + Math.random() * 9000)),
     nome,
     telefone,
-    servico,
-    mensagem: mensagem || '',
+    servico: servico || 'Orçamento/Agendamento',
+    detalhes: mensagem || endereco || '',
     status: 'Pendente',
     data: new Date().toISOString()
   };
 
-  pedidos.push(novoPedido);
-  writeJSON(path.join(__dirname, 'pedidos.json'), pedidos);
-  res.json({ sucesso: true, pedido: novoPedido });
+  chamados.push(novoChamado);
+  writeJSON(chamadosPath, chamados);
+  res.json({ sucesso: true, pedido: novoChamado });
 });
 
 app.patch('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  const pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
-  const index = pedidos.findIndex(p => p.id == id);
+  const chamados = readJSON(chamadosPath);
+  const index = chamados.findIndex(p => p.id == id);
 
   if (index !== -1) {
-    pedidos[index].status = status;
-    writeJSON(path.join(__dirname, 'pedidos.json'), pedidos);
-    return res.json({ sucesso: true, pedido: pedidos[index] });
+    chamados[index].status = status;
+    writeJSON(chamadosPath, chamados);
+    return res.json({ sucesso: true, pedido: chamados[index] });
   }
-  res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado' });
+  res.status(404).json({ sucesso: false, mensagem: 'Chamado não encontrado' });
 });
 
 app.delete('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  let pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
-  const inicial = pedidos.length;
-  pedidos = pedidos.filter(p => p.id != id);
+  let chamados = readJSON(chamadosPath);
+  const inicial = chamados.length;
+  chamados = chamados.filter(p => p.id != id);
 
-  if (pedidos.length < inicial) {
-    writeJSON(path.join(__dirname, 'pedidos.json'), pedidos);
-    return res.json({ sucesso: true, mensagem: 'Pedido eliminado com sucesso' });
+  if (chamados.length < inicial) {
+    writeJSON(chamadosPath, chamados);
+    return res.json({ sucesso: true, mensagem: 'Chamado eliminado com sucesso' });
   }
-  res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado' });
+  res.status(404).json({ sucesso: false, mensagem: 'Chamado não encontrado' });
 });
 
-// --- ROTAS DE SUPORTE ---
+// --- ROTAS DE SUPORTE (OPÇÃO 7 DO BOT - suporte.json) ---
 
-// Lê da raiz ou da pasta do Bot (chamados.json / suporte.json)
+const suportePath = path.join(__dirname, 'suporte.json');
+
 app.get('/api/suporte', (req, res) => {
   const { protocolo } = req.query;
-  
-  let suporteList = readJSON(path.join(__dirname, 'suporte.json'));
-  if (suporteList.length === 0) {
-    suporteList = readJSON(path.join(__dirname, 'Botencanador', 'chamados.json'));
-  }
+  const suporteList = readJSON(suportePath);
 
   if (protocolo) {
     const filtrado = suporteList.filter(s => 
@@ -200,7 +200,7 @@ app.get('/api/suporte', (req, res) => {
 app.post('/api/suporte', (req, res) => {
   try {
     const { nome, telefone, mensagem, detalhes, protocolo } = req.body;
-    const suporteList = readJSON(path.join(__dirname, 'suporte.json'));
+    const suporteList = readJSON(suportePath);
 
     const novoSuporte = {
       id: Date.now(),
@@ -208,49 +208,37 @@ app.post('/api/suporte', (req, res) => {
       nome: nome || 'Cliente WhatsApp',
       telefone: telefone || 'Não informado',
       detalhes: detalhes || mensagem || 'Sem descrição',
-      mensagem: mensagem || detalhes || 'Sem descrição',
       status: 'Pendente',
       createdAt: new Date().toISOString()
     };
 
     suporteList.push(novoSuporte);
-    writeJSON(path.join(__dirname, 'suporte.json'), suporteList);
+    writeJSON(suportePath, suporteList);
 
     return res.json({ sucesso: true, suporte: novoSuporte });
   } catch (error) {
     console.error("Erro ao salvar suporte:", error);
-    return res.status(500).json({ sucesso: false, mensagem: 'Erro ao guardar suporte.' });
+    return res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao guardar suporte.' });
   }
 });
 
 app.delete('/api/admin/suporte/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  
-  let suporteList = readJSON(path.join(__dirname, 'suporte.json'));
-  let inicial = suporteList.length;
+  let suporteList = readJSON(suportePath);
+  const inicial = suporteList.length;
   suporteList = suporteList.filter(s => s.id != id);
 
   if (suporteList.length < inicial) {
-    writeJSON(path.join(__dirname, 'suporte.json'), suporteList);
-    return res.json({ sucesso: true, mensagem: 'Eliminado com sucesso' });
+    writeJSON(suportePath, suporteList);
+    return res.json({ sucesso: true, mensagem: 'Registo de suporte eliminado com sucesso' });
   }
 
-  // Tenta eliminar no chamados.json caso esteja lá
-  let chamadosList = readJSON(path.join(__dirname, 'Botencanador', 'chamados.json'));
-  inicial = chamadosList.length;
-  chamadosList = chamadosList.filter(s => s.id != id);
-
-  if (chamadosList.length < inicial) {
-    writeJSON(path.join(__dirname, 'Botencanador', 'chamados.json'), chamadosList);
-    return res.json({ sucesso: true, mensagem: 'Eliminado de chamados.json com sucesso' });
-  }
-
-  res.status(404).json({ sucesso: false, mensagem: 'Registo não encontrado' });
+  res.status(404).json({ sucesso: false, mensagem: 'Registo de suporte não encontrado' });
 });
 
-// Inicialização
+// Inicialização do servidor + Execução do Bot
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌐 Servidor a rodar na porta ${PORT}`);
+  console.log(`🌐 Servidor API e Web a rodar na porta ${PORT}`);
   
   try {
     const botPath = fs.existsSync(path.join(__dirname, 'Botencanador', 'index.js'))

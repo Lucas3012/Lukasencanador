@@ -6,264 +6,60 @@
   <title>Painel de Gestão - Lukas Encanador</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    }
-
-    body {
-      background-color: #f8fafc;
-      color: #0f172a;
-      padding-bottom: 40px;
-    }
-
-    header {
-      background: #ffffff;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      border-bottom: 1px solid #e2e8f0;
-      padding: 15px 20px;
-    }
-
-    .header-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .logo {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #0369a1;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .btn-logout {
-      background-color: #dc2626;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.2s;
-    }
-
-    .btn-logout:hover {
-      background-color: #b91c1c;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 25px auto;
-      padding: 0 20px;
-    }
-
-    /* Abas Nav */
-    .tabs-nav {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #e2e8f0;
-    }
-
-    .tab-btn {
-      padding: 10px 20px;
-      border: none;
-      background: #e2e8f0;
-      color: #334155;
-      font-weight: 700;
-      border-radius: 6px 6px 0 0;
-      cursor: pointer;
-    }
-
-    .tab-btn.active {
-      background: #0256b3;
-      color: white;
-    }
-
-    .title-section {
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .btn-refresh {
-      background-color: #0256b3;
-      color: white;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* Metric Cards Grid */
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
-      margin-bottom: 25px;
-    }
-
-    .card {
-      background: white;
-      border-radius: 10px;
-      padding: 20px 15px;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      border: 1px solid #f1f5f9;
-    }
-
-    .card-value {
-      font-size: 2rem;
-      font-weight: 800;
-      margin-bottom: 5px;
-    }
-
-    .card-label {
-      color: #475569;
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
-    .card-total { color: #0256b3; }
-    .card-hoje { color: #0284c7; }
-    .card-pendente { color: #d97706; }
-    .card-andamento { color: #0284c7; }
-    .card-concluido { color: #16a34a; }
-    .card-cancelado { color: #dc2626; }
-
-    /* Table Container */
-    .table-card {
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      border: 1px solid #f1f5f9;
-      overflow: hidden;
-    }
-
-    .table-responsive {
-      width: 100%;
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      min-width: 800px;
-    }
-
-    th {
-      background-color: #f1f5f9;
-      color: #334155;
-      font-weight: 700;
-      padding: 14px 16px;
-      font-size: 0.9rem;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    td {
-      padding: 14px 16px;
-      border-bottom: 1px solid #f1f5f9;
-      color: #334155;
-      font-size: 0.9rem;
-      white-space: pre-line;
-    }
-
-    .no-data {
-      text-align: center;
-      padding: 30px;
-      color: #64748b;
-    }
-
-    select.status-select {
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      outline: none;
-      cursor: pointer;
-    }
-
-    .btn-delete {
-      background-color: #dc2626;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-
-    .search-box {
-      margin-bottom: 15px;
-      display: flex;
-      gap: 10px;
-    }
-
-    .search-box input {
-      padding: 8px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      width: 280px;
-    }
-
-    @media (min-width: 768px) {
-      .metrics-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (min-width: 1024px) {
-      .metrics-grid { grid-template-columns: repeat(6, 1fr); }
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { background-color: #f8fafc; color: #0f172a; padding-bottom: 40px; }
+    header { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); border-bottom: 1px solid #e2e8f0; padding: 15px 20px; }
+    .header-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 1.5rem; font-weight: 800; color: #0369a1; display: flex; align-items: center; gap: 10px; }
+    .btn-logout { background-color: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+    .container { max-width: 1200px; margin: 25px auto; padding: 0 20px; }
+    .tabs-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+    .tab-btn { padding: 10px 20px; border: none; background: #e2e8f0; color: #334155; font-weight: 700; border-radius: 6px 6px 0 0; cursor: pointer; }
+    .tab-btn.active { background: #0256b3; color: white; }
+    .title-section { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-refresh { background-color: #0256b3; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; }
+    .card { background: white; border-radius: 10px; padding: 20px 15px; text-align: center; border: 1px solid #f1f5f9; }
+    .card-value { font-size: 2rem; font-weight: 800; margin-bottom: 5px; }
+    .card-label { color: #475569; font-size: 0.9rem; font-weight: 600; }
+    .card-total { color: #0256b3; } .card-pendente { color: #d97706; } .card-andamento { color: #0284c7; } .card-concluido { color: #16a34a; } .card-cancelado { color: #dc2626; }
+    .table-card { background: white; border-radius: 10px; border: 1px solid #f1f5f9; overflow: hidden; }
+    .table-responsive { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; min-width: 800px; }
+    th { background-color: #f1f5f9; color: #334155; font-weight: 700; padding: 14px 16px; font-size: 0.9rem; }
+    td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.9rem; white-space: pre-line; }
+    .no-data { text-align: center; padding: 30px; color: #64748b; }
+    select.status-select { padding: 6px 10px; border-radius: 6px; font-weight: 600; }
+    .btn-delete { background-color: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .search-box { margin-bottom: 15px; display: flex; gap: 10px; }
+    .search-box input { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; width: 280px; }
+    @media (min-width: 768px) { .metrics-grid { grid-template-columns: repeat(5, 1fr); } }
   </style>
 </head>
 <body>
 
   <header>
     <div class="header-container">
-      <div class="logo">
-        <i class="fa-solid fa-wrench"></i> Lukas Encanador
-      </div>
-      <button class="btn-logout" onclick="logout()">
-        <i class="fa-solid fa-right-from-bracket"></i> Sair
-      </button>
+      <div class="logo"><i class="fa-solid fa-wrench"></i> Lukas Encanador</div>
+      <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
     </div>
   </header>
 
   <main class="container">
-    
     <div class="tabs-nav">
-      <button class="tab-btn active" id="btnTabPedidos" onclick="mudarAba('pedidos')">Gestão de Pedidos</button>
-      <button class="tab-btn" id="btnTabSuporte" onclick="mudarAba('suporte')">Aba de Suporte</button>
+      <button class="tab-btn active" id="btnTabPedidos" onclick="mudarAba('pedidos')">Gestão de Chamados (Opção 1)</button>
+      <button class="tab-btn" id="btnTabSuporte" onclick="mudarAba('suporte')">Suporte / Reclamações (Opção 7)</button>
     </div>
 
-    <!-- SEÇÃO PEDIDOS -->
+    <!-- SEÇÃO CHAMADOS (OPÇÃO 1) -->
     <div id="secaoPedidos">
       <div class="title-section">
-        <h1><i class="fa-solid fa-chart-line"></i> Painel de Pedidos</h1>
-        <button class="btn-refresh" onclick="carregarPedidos()">
-          <i class="fa-solid fa-rotate"></i> Atualizar
-        </button>
+        <h1><i class="fa-solid fa-chart-line"></i> Chamados de Orçamento</h1>
+        <button class="btn-refresh" onclick="carregarPedidos()"><i class="fa-solid fa-rotate"></i> Atualizar</button>
       </div>
 
       <div class="metrics-grid">
-        <div class="card"><div class="card-value card-total" id="totalPedidos">0</div><div class="card-label">Total Pedidos</div></div>
-        <div class="card"><div class="card-value card-hoje" id="pedidosHoje">0</div><div class="card-label">Pedidos Hoje</div></div>
+        <div class="card"><div class="card-value card-total" id="totalPedidos">0</div><div class="card-label">Total Chamados</div></div>
         <div class="card"><div class="card-value card-pendente" id="pedidosPendente">0</div><div class="card-label">Pendentes</div></div>
         <div class="card"><div class="card-value card-andamento" id="pedidosAndamento">0</div><div class="card-label">Em Andamento</div></div>
         <div class="card"><div class="card-value card-concluido" id="pedidosConcluido">0</div><div class="card-label">Concluídos</div></div>
@@ -291,10 +87,10 @@
       </div>
     </div>
 
-    <!-- SEÇÃO SUPORTE -->
+    <!-- SEÇÃO SUPORTE (OPÇÃO 7) -->
     <div id="secaoSuporte" style="display: none;">
       <div class="title-section">
-        <h1><i class="fa-solid fa-headset"></i> Registo de Suporte</h1>
+        <h1><i class="fa-solid fa-headset"></i> Suporte e Reclamações</h1>
       </div>
 
       <div class="search-box">
@@ -311,7 +107,7 @@
                 <th>Data/Hora</th>
                 <th>Cliente</th>
                 <th>Telefone</th>
-                <th>Mensagem / Problema</th>
+                <th>Reclamação / Detalhes</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
@@ -321,7 +117,6 @@
         </div>
       </div>
     </div>
-
   </main>
 
   <script>
@@ -346,31 +141,31 @@
 
         if (res.status === 401 || res.status === 403) return logout();
 
-        const pedidos = await res.json();
+        const chamados = await res.json();
         const tbody = document.getElementById('tabelaPedidos');
 
-        if (!Array.isArray(pedidos) || pedidos.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="no-data">Nenhum pedido registado.</td></tr>';
+        if (!Array.isArray(chamados) || chamados.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="no-data">Nenhum chamado registado em chamados.json.</td></tr>';
           return;
         }
 
-        document.getElementById('totalPedidos').innerText = pedidos.length;
-        document.getElementById('pedidosPendente').innerText = pedidos.filter(p => (!p.status || p.status === 'Pendente')).length;
-        document.getElementById('pedidosAndamento').innerText = pedidos.filter(p => p.status === 'Em Andamento').length;
-        document.getElementById('pedidosConcluido').innerText = pedidos.filter(p => p.status === 'Concluído').length;
-        document.getElementById('pedidosCancelado').innerText = pedidos.filter(p => p.status === 'Cancelado').length;
+        document.getElementById('totalPedidos').innerText = chamados.length;
+        document.getElementById('pedidosPendente').innerText = chamados.filter(p => (!p.status || p.status === 'Pendente')).length;
+        document.getElementById('pedidosAndamento').innerText = chamados.filter(p => p.status === 'Em Andamento').length;
+        document.getElementById('pedidosConcluido').innerText = chamados.filter(p => p.status === 'Concluído').length;
+        document.getElementById('pedidosCancelado').innerText = chamados.filter(p => p.status === 'Cancelado').length;
 
         tbody.innerHTML = '';
-        pedidos.slice().reverse().forEach((p) => {
+        chamados.slice().reverse().forEach((p) => {
           const currentStatus = p.status || 'Pendente';
           tbody.innerHTML += `
             <tr>
-              <td><strong>#${String(p.id).slice(-4)}</strong></td>
-              <td>${p.data ? new Date(p.data).toLocaleString('pt-BR') : '-'}</td>
+              <td><strong>#${p.protocolo || String(p.id).slice(-4)}</strong></td>
+              <td>${p.data || p.createdAt ? new Date(p.data || p.createdAt).toLocaleString('pt-BR') : '-'}</td>
               <td>${p.nome || '-'}</td>
               <td>${p.telefone || '-'}</td>
               <td>${p.servico || '-'}</td>
-              <td>${p.mensagem || p.endereco || '-'}</td>
+              <td>${p.detalhes || p.mensagem || p.endereco || '-'}</td>
               <td>
                 <select class="status-select" onchange="atualizarStatus('${p.id}', this.value)">
                   <option value="Pendente" ${currentStatus === 'Pendente' ? 'selected' : ''}>Pendente</option>
@@ -386,7 +181,7 @@
           `;
         });
       } catch (err) {
-        console.error('Erro ao carregar pedidos:', err);
+        console.error('Erro ao carregar chamados:', err);
       }
     }
 
@@ -399,16 +194,16 @@
         const tbody = document.getElementById('tabelaSuporte');
 
         if (!Array.isArray(suportes) || suportes.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="no-data">Nenhum registo de suporte encontrado.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="no-data">Nenhuma reclamação registada em suporte.json.</td></tr>';
           return;
         }
 
         tbody.innerHTML = '';
-        suportes.forEach((s) => {
+        suportes.slice().reverse().forEach((s) => {
           tbody.innerHTML += `
             <tr>
               <td><strong>#${s.protocolo || String(s.id).slice(-4)}</strong></td>
-              <td>${s.createdAt ? new Date(s.createdAt).toLocaleString('pt-BR') : '-'}</td>
+              <td>${s.createdAt || s.data ? new Date(s.createdAt || s.data).toLocaleString('pt-BR') : '-'}</td>
               <td>${s.nome || '-'}</td>
               <td>${s.telefone || '-'}</td>
               <td>${s.detalhes || s.mensagem || '-'}</td>
@@ -434,7 +229,7 @@
     }
 
     async function eliminarPedido(id) {
-      if (!confirm('Deseja eliminar este pedido?')) return;
+      if (!confirm('Deseja eliminar este chamado?')) return;
       await fetch(`./api/admin/pedidos/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -443,7 +238,7 @@
     }
 
     async function eliminarSuporte(id) {
-      if (!confirm('Deseja eliminar este suporte?')) return;
+      if (!confirm('Deseja eliminar esta reclamação?')) return;
       await fetch(`./api/admin/suporte/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
