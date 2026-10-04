@@ -63,7 +63,8 @@ const SuporteModel = mongoose.models.Suporte || mongoose.model('Suporte', Suport
 const readJSON = (filePath) => {
   if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, '[]');
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    return Array.isArray(data) ? data : [];
   } catch (e) {
     return [];
   }
@@ -93,8 +94,10 @@ const suportePath = path.join(__dirname, 'suporte.json');
 app.get('/api/admin/pedidos', authenticateToken, async (req, res) => {
   try {
     if (mongoose.connection.readyState === 1) {
-      const chamadosMongo = await ChamadoModel.find();
-      if (chamadosMongo.length > 0) return res.json(chamadosMongo);
+      const chamadosMongo = await ChamadoModel.find().lean();
+      if (Array.isArray(chamadosMongo) && chamadosMongo.length > 0) {
+        return res.json(chamadosMongo);
+      }
     }
   } catch (err) {
     console.error("Erro ao ler chamados do Mongo:", err);
@@ -140,15 +143,21 @@ app.patch('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  const chamados = readJSON(chamadosPath);
-  const index = chamados.findIndex(p => p.id == id);
-  if (index !== -1) {
-    chamados[index].status = status;
-    writeJSON(chamadosPath, chamados);
+  let chamados = readJSON(chamadosPath);
+  if (Array.isArray(chamados)) {
+    const index = chamados.findIndex(p => String(p.id) === String(id));
+    if (index !== -1) {
+      chamados[index].status = status;
+      writeJSON(chamadosPath, chamados);
+    }
   }
 
   if (mongoose.connection.readyState === 1) {
-    await ChamadoModel.updateOne({ id: Number(id) }, { status });
+    try {
+      await ChamadoModel.updateOne({ id: Number(id) }, { status });
+    } catch (err) {
+      console.error("Erro ao atualizar status no MongoDB:", err);
+    }
   }
 
   res.json({ sucesso: true });
@@ -158,11 +167,17 @@ app.delete('/api/admin/pedidos/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
 
   let chamados = readJSON(chamadosPath);
-  chamados = chamados.filter(p => p.id != id);
-  writeJSON(chamadosPath, chamados);
+  if (Array.isArray(chamados)) {
+    chamados = chamados.filter(p => String(p.id) !== String(id));
+    writeJSON(chamadosPath, chamados);
+  }
 
   if (mongoose.connection.readyState === 1) {
-    await ChamadoModel.deleteOne({ id: Number(id) });
+    try {
+      await ChamadoModel.deleteOne({ id: Number(id) });
+    } catch (err) {
+      console.error("Erro ao eliminar chamado no MongoDB:", err);
+    }
   }
 
   res.json({ sucesso: true, mensagem: 'Chamado eliminado com sucesso' });
@@ -179,8 +194,10 @@ app.get('/api/suporte', async (req, res) => {
       if (protocolo) {
         query = { $or: [{ id: protocolo }, { protocolo: protocolo }] };
       }
-      const suporteMongo = await SuporteModel.find(query);
-      if (suporteMongo.length > 0) return res.json(suporteMongo);
+      const suporteMongo = await SuporteModel.find(query).lean();
+      if (Array.isArray(suporteMongo) && suporteMongo.length > 0) {
+        return res.json(suporteMongo);
+      }
     } catch (err) {
       console.error("Erro ao ler suporte do Mongo:", err);
     }
@@ -231,15 +248,21 @@ app.patch('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  const suporteList = readJSON(suportePath);
-  const index = suporteList.findIndex(s => s.id == id);
-  if (index !== -1) {
-    suporteList[index].status = status;
-    writeJSON(suportePath, suporteList);
+  let suporteList = readJSON(suportePath);
+  if (Array.isArray(suporteList)) {
+    const index = suporteList.findIndex(s => String(s.id) === String(id));
+    if (index !== -1) {
+      suporteList[index].status = status;
+      writeJSON(suportePath, suporteList);
+    }
   }
 
   if (mongoose.connection.readyState === 1) {
-    await SuporteModel.updateOne({ id: Number(id) }, { status });
+    try {
+      await SuporteModel.updateOne({ id: Number(id) }, { status });
+    } catch (err) {
+      console.error("Erro ao atualizar suporte no MongoDB:", err);
+    }
   }
 
   res.json({ sucesso: true });
@@ -249,11 +272,17 @@ app.delete('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
 
   let suporteList = readJSON(suportePath);
-  suporteList = suporteList.filter(s => s.id != id);
-  writeJSON(suportePath, suporteList);
+  if (Array.isArray(suporteList)) {
+    suporteList = suporteList.filter(s => String(s.id) !== String(id));
+    writeJSON(suportePath, suporteList);
+  }
 
   if (mongoose.connection.readyState === 1) {
-    await SuporteModel.deleteOne({ id: Number(id) });
+    try {
+      await SuporteModel.deleteOne({ id: Number(id) });
+    } catch (err) {
+      console.error("Erro ao eliminar suporte no MongoDB:", err);
+    }
   }
 
   res.json({ sucesso: true, mensagem: 'Registo de suporte eliminado' });
@@ -265,7 +294,7 @@ app.post('/api/admin/login', (req, res) => {
   const senhaInput = req.body.senha || req.body.password;
 
   const admins = readJSON(path.join(__dirname, 'admins.json'));
-  const admin = admins.find(a => a.username === usuarioInput);
+  const admin = Array.isArray(admins) ? admins.find(a => a.username === usuarioInput) : null;
 
   if (admin && admin.password === senhaInput) {
     const token = jwt.sign({ username: admin.username }, SECRET_KEY, { expiresIn: '8h' });
