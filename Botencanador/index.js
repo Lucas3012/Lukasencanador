@@ -8,9 +8,12 @@ const path = require('path')
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = process.env.BOT_NUMBER || ''
 
-// Link de convite do grupo
-const LINK_GRUPO = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n'
-let GRUPO_JID = null
+// Links dos grupos do WhatsApp
+const LINK_GRUPO_CHAMADOS = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n'
+const LINK_GRUPO_ORCAMENTOS = 'https://chat.whatsapp.com/HYFutIc2BYi6I0EyM6sBsQ'
+
+let GRUPO_CHAMADOS_JID = null
+let GRUPO_ORCAMENTOS_JID = null
 
 let jaPareou = false
 let clienteAtual = null
@@ -43,6 +46,26 @@ function normalizar(texto) {
 }
 
 const esperar = (tempo) => new Promise(resolve => setTimeout(resolve, tempo))
+
+async function obterJidGrupo(client, linkGrupo) {
+    try {
+        const codeMatch = linkGrupo.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/)
+        if (codeMatch && codeMatch[1]) {
+            const inviteCode = codeMatch[1]
+            try {
+                return await client.groupAcceptInvite(inviteCode)
+            } catch (err) {
+                if (err.data === 409 || err.message?.includes('already')) {
+                    const groupInfo = await client.groupGetInviteInfo(inviteCode)
+                    return groupInfo.id
+                }
+            }
+        }
+    } catch (e) {
+        console.error('⚠️ Erro ao vincular ao grupo:', e.message)
+    }
+    return null
+}
 
 async function ligarbot() {
     if (clienteAtual) {
@@ -230,7 +253,7 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
 
                 await escrever(resumoCliente)
 
-                if (GRUPO_JID) {
+                if (GRUPO_CHAMADOS_JID) {
                     try {
                         const mensagemGrupo = 
 `🚨 *NOVO CHAMADO RECEBIDO!*
@@ -242,7 +265,7 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
 🛠️ *Serviço:* ${userData[from].tipoServico}
 📝 *Detalhes:* ${userData[from].detalhes}`
 
-                        await client.sendMessage(GRUPO_JID, { text: mensagemGrupo })
+                        await client.sendMessage(GRUPO_CHAMADOS_JID, { text: mensagemGrupo })
                     } catch (eGrupo) {}
                 }
 
@@ -274,7 +297,7 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
                 } else if (text === '3' || textNorm.includes('reparo') || textNorm.includes('manutencao')) {
                     userData[from].tipoServico = 'Reparo Geral / Manutenção'
                 } else {
-                    userData[from].tipoServico = text // Caso digite outro texto livre
+                    userData[from].tipoServico = text
                 }
 
                 userState[from] = 'orc_descricao'
@@ -327,7 +350,8 @@ _Digite *0* para voltar ao menu principal._`
 
                     await escrever(msgSucesso)
 
-                    if (GRUPO_JID) {
+                    // Envia notificação diretamente para o grupo de orçamentos
+                    if (GRUPO_ORCAMENTOS_JID) {
                         try {
                             const mensagemGrupo = 
 `💰 *SOLICITAÇÃO DE ORÇAMENTO (#${protocolo})*
@@ -337,7 +361,7 @@ _Digite *0* para voltar ao menu principal._`
 🛠️ *Categoria:* ${userData[from].tipoServico}
 📝 *Descrição:* ${userData[from].detalhes}`
 
-                            await client.sendMessage(GRUPO_JID, { text: mensagemGrupo })
+                            await client.sendMessage(GRUPO_ORCAMENTOS_JID, { text: mensagemGrupo })
                         } catch (eGrupo) {}
                     }
 
@@ -380,25 +404,12 @@ _Digite *0* para voltar ao menu principal._`
         if (connection === 'open') {
             console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!')
 
-            try {
-                const codeMatch = LINK_GRUPO.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/)
-                if (codeMatch && codeMatch[1]) {
-                    const inviteCode = codeMatch[1]
-                    GRUPO_JID = await client.groupAcceptInvite(inviteCode)
-                    console.log(`👥 Bot pronto e vinculado ao grupo JID: ${GRUPO_JID}`)
-                }
-            } catch (err) {
-                if (err.data === 409 || err.message?.includes('already')) {
-                    try {
-                        const codeMatch = LINK_GRUPO.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/)
-                        if (codeMatch && codeMatch[1]) {
-                            const groupInfo = await client.groupGetInviteInfo(codeMatch[1])
-                            GRUPO_JID = groupInfo.id
-                            console.log(`👥 Bot já pertence ao grupo: ${groupInfo.subject} (${GRUPO_JID})`)
-                        }
-                    } catch (e) {}
-                }
-            }
+            // Conecta aos dois grupos
+            GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS)
+            if (GRUPO_CHAMADOS_JID) console.log(`👥 Grupo Chamados vinculado: ${GRUPO_CHAMADOS_JID}`)
+
+            GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
+            if (GRUPO_ORCAMENTOS_JID) console.log(`👥 Grupo Orçamentos vinculado: ${GRUPO_ORCAMENTOS_JID}`)
         }
         
         if (connection === 'close') {
