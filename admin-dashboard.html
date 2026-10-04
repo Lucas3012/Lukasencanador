@@ -132,6 +132,8 @@
     const token = localStorage.getItem('token');
     if (!token) window.location.href = './index.html';
 
+    const formatStatus = (s) => (s || 'Pendente').toString().trim().toLowerCase();
+
     function mudarAba(aba) {
       document.getElementById('secaoPedidos').style.display = aba === 'pedidos' ? 'block' : 'none';
       document.getElementById('secaoSuporte').style.display = aba === 'suporte' ? 'block' : 'none';
@@ -165,14 +167,14 @@
         }
 
         document.getElementById('totalPedidos').innerText = chamados.length;
-        document.getElementById('pedidosPendente').innerText = chamados.filter(p => (!p.status || p.status === 'Pendente')).length;
-        document.getElementById('pedidosAndamento').innerText = chamados.filter(p => p.status === 'Em Andamento').length;
-        document.getElementById('pedidosConcluido').innerText = chamados.filter(p => p.status === 'Concluído').length;
-        document.getElementById('pedidosCancelado').innerText = chamados.filter(p => p.status === 'Cancelado').length;
+        document.getElementById('pedidosPendente').innerText = chamados.filter(p => formatStatus(p.status) === 'pendente').length;
+        document.getElementById('pedidosAndamento').innerText = chamados.filter(p => formatStatus(p.status) === 'em andamento').length;
+        document.getElementById('pedidosConcluido').innerText = chamados.filter(p => formatStatus(p.status) === 'concluído' || formatStatus(p.status) === 'concluido' || formatStatus(p.status) === 'resolvido').length;
+        document.getElementById('pedidosCancelado').innerText = chamados.filter(p => formatStatus(p.status) === 'cancelado').length;
 
         tbody.innerHTML = '';
         chamados.slice().reverse().forEach((p) => {
-          const currentStatus = p.status || 'Pendente';
+          const st = formatStatus(p.status);
           tbody.innerHTML += `
             <tr>
               <td><strong>#${p.protocolo || String(p.id).slice(-4)}</strong></td>
@@ -183,10 +185,10 @@
               <td>${p.detalhes || p.mensagem || p.endereco || '-'}</td>
               <td>
                 <select class="status-select" onchange="atualizarStatus('${p.id}', this.value)">
-                  <option value="Pendente" ${currentStatus === 'Pendente' ? 'selected' : ''}>Pendente</option>
-                  <option value="Em Andamento" ${currentStatus === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-                  <option value="Concluído" ${currentStatus === 'Concluído' ? 'selected' : ''}>Concluído</option>
-                  <option value="Cancelado" ${currentStatus === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+                  <option value="Pendente" ${st === 'pendente' ? 'selected' : ''}>Pendente</option>
+                  <option value="Em Andamento" ${st === 'em andamento' ? 'selected' : ''}>Em Andamento</option>
+                  <option value="Concluído" ${st === 'concluído' || st === 'concluido' || st === 'resolvido' ? 'selected' : ''}>Concluído</option>
+                  <option value="Cancelado" ${st === 'cancelado' ? 'selected' : ''}>Cancelado</option>
                 </select>
               </td>
               <td>
@@ -219,14 +221,14 @@
         }
 
         document.getElementById('totalSuporte').innerText = suportes.length;
-        document.getElementById('suportePendente').innerText = suportes.filter(s => (!s.status || s.status === 'Pendente')).length;
-        document.getElementById('suporteAndamento').innerText = suportes.filter(s => s.status === 'Em Andamento').length;
-        document.getElementById('suporteConcluido').innerText = suportes.filter(s => s.status === 'Concluído' || s.status === 'Resolvido').length;
-        document.getElementById('suporteCancelado').innerText = suportes.filter(s => s.status === 'Cancelado').length;
+        document.getElementById('suportePendente').innerText = suportes.filter(s => formatStatus(s.status) === 'pendente').length;
+        document.getElementById('suporteAndamento').innerText = suportes.filter(s => formatStatus(s.status) === 'em andamento').length;
+        document.getElementById('suporteConcluido').innerText = suportes.filter(s => formatStatus(s.status) === 'concluído' || formatStatus(s.status) === 'concluido' || formatStatus(s.status) === 'resolvido').length;
+        document.getElementById('suporteCancelado').innerText = suportes.filter(s => formatStatus(s.status) === 'cancelado').length;
 
         tbody.innerHTML = '';
         suportes.slice().reverse().forEach((s) => {
-          const currentStatus = s.status || 'Pendente';
+          const st = formatStatus(s.status);
           tbody.innerHTML += `
             <tr>
               <td><strong>#${s.protocolo || String(s.id).slice(-4)}</strong></td>
@@ -236,10 +238,10 @@
               <td>${s.detalhes || s.mensagem || '-'}</td>
               <td>
                 <select class="status-select" onchange="atualizarStatusSuporte('${s.id}', this.value)">
-                  <option value="Pendente" ${currentStatus === 'Pendente' ? 'selected' : ''}>Pendente</option>
-                  <option value="Em Andamento" ${currentStatus === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-                  <option value="Concluído" ${currentStatus === 'Concluído' || currentStatus === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
-                  <option value="Cancelado" ${currentStatus === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+                  <option value="Pendente" ${st === 'pendente' ? 'selected' : ''}>Pendente</option>
+                  <option value="Em Andamento" ${st === 'em andamento' ? 'selected' : ''}>Em Andamento</option>
+                  <option value="Concluído" ${st === 'concluído' || st === 'concluido' || st === 'resolvido' ? 'selected' : ''}>Resolvido</option>
+                  <option value="Cancelado" ${st === 'cancelado' ? 'selected' : ''}>Cancelado</option>
                 </select>
               </td>
               <td>

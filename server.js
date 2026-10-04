@@ -227,7 +227,6 @@ app.post('/api/suporte', async (req, res) => {
   }
 });
 
-// ROTA PARA ATUALIZAR STATUS DE SUPORTE
 app.patch('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
