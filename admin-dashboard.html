@@ -3,300 +3,200 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Gestão - Lukas Encanador</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>Painel de Administração</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-    body { background-color: #f8fafc; color: #0f172a; padding-bottom: 40px; }
-    header { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); border-bottom: 1px solid #e2e8f0; padding: 15px 20px; }
-    .header-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-    .logo { font-size: 1.5rem; font-weight: 800; color: #0369a1; display: flex; align-items: center; gap: 10px; }
-    .btn-logout { background-color: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
-    .container { max-width: 1200px; margin: 25px auto; padding: 0 20px; }
-    .tabs-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
-    .tab-btn { padding: 10px 20px; border: none; background: #e2e8f0; color: #334155; font-weight: 700; border-radius: 6px 6px 0 0; cursor: pointer; }
-    .tab-btn.active { background: #0256b3; color: white; }
-    .title-section { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .btn-refresh { background-color: #0256b3; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; }
-    .card { background: white; border-radius: 10px; padding: 20px 15px; text-align: center; border: 1px solid #f1f5f9; }
-    .card-value { font-size: 2rem; font-weight: 800; margin-bottom: 5px; }
-    .card-label { color: #475569; font-size: 0.9rem; font-weight: 600; }
-    .card-total { color: #0256b3; } .card-pendente { color: #d97706; } .card-andamento { color: #0284c7; } .card-concluido { color: #16a34a; } .card-cancelado { color: #dc2626; }
-    .table-card { background: white; border-radius: 10px; border: 1px solid #f1f5f9; overflow: hidden; }
-    .table-responsive { width: 100%; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; text-align: left; min-width: 800px; }
-    th { background-color: #f1f5f9; color: #334155; font-weight: 700; padding: 14px 16px; font-size: 0.9rem; }
-    td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.9rem; white-space: pre-line; }
-    .no-data { text-align: center; padding: 30px; color: #64748b; }
-    select.status-select { padding: 6px 10px; border-radius: 6px; font-weight: 600; }
-    .btn-delete { background-color: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-    .search-box { margin-bottom: 15px; display: flex; gap: 10px; }
-    .search-box input { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; width: 280px; }
-    @media (min-width: 768px) { .metrics-grid { grid-template-columns: repeat(5, 1fr); } }
+    * { box-sizing: border-box; font-family: Arial, sans-serif; }
+    body { margin: 20px; background-color: #f4f4f9; }
+    h1 { color: #333; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tab-btn { padding: 10px 15px; border: none; background: #e0e0e0; cursor: pointer; border-radius: 5px; font-weight: bold; }
+    .tab-btn.active { background: #007bff; color: white; }
+    table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #333; color: white; }
+    select { padding: 5px; border-radius: 4px; }
+    .btn-delete { background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .logout-btn { background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="header-container">
-      <div class="logo"><i class="fa-solid fa-wrench"></i> Lukas Encanador</div>
-      <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
-    </div>
-  </header>
+  <div class="header-actions">
+    <h1>Painel de Chamados</h1>
+    <button class="logout-btn" onclick="logout()">Sair</button>
+  </div>
 
-  <main class="container">
-    <div class="tabs-nav">
-      <button class="tab-btn active" id="btnTabPedidos" onclick="mudarAba('pedidos')">Gestão de Chamados (Opção 1)</button>
-      <button class="tab-btn" id="btnTabSuporte" onclick="mudarAba('suporte')">Suporte / Reclamações (Opção 7)</button>
-    </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-status="Pendente" onclick="trocarAba('Pendente')">Pendentes (<span id="count-pendente">0</span>)</button>
+    <button class="tab-btn" data-status="Em Andamento" onclick="trocarAba('Em Andamento')">Em Andamento (<span id="count-andamento">0</span>)</button>
+    <button class="tab-btn" data-status="Concluído" onclick="trocarAba('Concluído')">Concluídos (<span id="count-concluido">0</span>)</button>
+    <button class="tab-btn" data-status="Todos" onclick="trocarAba('Todos')">Todos (<span id="count-todos">0</span>)</button>
+  </div>
 
-    <!-- SEÇÃO CHAMADOS (OPÇÃO 1) -->
-    <div id="secaoPedidos">
-      <div class="title-section">
-        <h1><i class="fa-solid fa-chart-line"></i> Chamados de Orçamento</h1>
-        <button class="btn-refresh" onclick="carregarPedidos()"><i class="fa-solid fa-rotate"></i> Atualizar</button>
-      </div>
-
-      <div class="metrics-grid">
-        <div class="card"><div class="card-value card-total" id="totalPedidos">0</div><div class="card-label">Total Chamados</div></div>
-        <div class="card"><div class="card-value card-pendente" id="pedidosPendente">0</div><div class="card-label">Pendentes</div></div>
-        <div class="card"><div class="card-value card-andamento" id="pedidosAndamento">0</div><div class="card-label">Em Andamento</div></div>
-        <div class="card"><div class="card-value card-concluido" id="pedidosConcluido">0</div><div class="card-label">Concluídos</div></div>
-        <div class="card"><div class="card-value card-cancelado" id="pedidosCancelado">0</div><div class="card-label">Cancelados</div></div>
-      </div>
-
-      <div class="table-card">
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th># Protocolo</th>
-                <th>Data/Hora</th>
-                <th>Cliente</th>
-                <th>Telefone</th>
-                <th>Serviço</th>
-                <th>Detalhes</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tabelaPedidos"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- SEÇÃO SUPORTE (OPÇÃO 7) -->
-    <div id="secaoSuporte" style="display: none;">
-      <div class="title-section">
-        <h1><i class="fa-solid fa-headset"></i> Suporte e Reclamações</h1>
-        <button class="btn-refresh" onclick="carregarSuporte()"><i class="fa-solid fa-rotate"></i> Atualizar</button>
-      </div>
-
-      <div class="metrics-grid">
-        <div class="card"><div class="card-value card-total" id="totalSuporte">0</div><div class="card-label">Total Reclamações</div></div>
-        <div class="card"><div class="card-value card-pendente" id="suportePendente">0</div><div class="card-label">Pendentes</div></div>
-        <div class="card"><div class="card-value card-andamento" id="suporteAndamento">0</div><div class="card-label">Em Andamento</div></div>
-        <div class="card"><div class="card-value card-concluido" id="suporteConcluido">0</div><div class="card-label">Resolvidos</div></div>
-        <div class="card"><div class="card-value card-cancelado" id="suporteCancelado">0</div><div class="card-label">Cancelados</div></div>
-      </div>
-
-      <div class="search-box">
-        <input type="text" id="pesquisaSuporte" placeholder="Pesquisar por protocolo..." onkeyup="if(event.key === 'Enter') carregarSuporte()">
-        <button class="btn-refresh" onclick="carregarSuporte()">Pesquisar</button>
-      </div>
-
-      <div class="table-card">
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th># Protocolo</th>
-                <th>Data/Hora</th>
-                <th>Cliente</th>
-                <th>Telefone</th>
-                <th>Reclamação / Detalhes</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tabelaSuporte"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </main>
+  <table>
+    <thead>
+      <tr>
+        <th>Protocolo/ID</th>
+        <th>Nome</th>
+        <th>Telefone</th>
+        <th>Detalhes</th>
+        <th>Status</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tabela-pedidos">
+      <tr><td colspan="6" style="text-align:center;">A carregar pedidos...</td></tr>
+    </tbody>
+  </table>
 
   <script>
-    const token = localStorage.getItem('token');
-    if (!token) window.location.href = './index.html';
+    const API_URL = '';
+    let todosOsPedidos = [];
+    let abaAtual = 'Pendente';
 
-    const formatStatus = (s) => (s || 'Pendente').toString().trim().toLowerCase();
+    function getToken() {
+      return localStorage.getItem('adminToken') || '';
+    }
 
-    function mudarAba(aba) {
-      document.getElementById('secaoPedidos').style.display = aba === 'pedidos' ? 'block' : 'none';
-      document.getElementById('secaoSuporte').style.display = aba === 'suporte' ? 'block' : 'none';
-      
-      document.getElementById('btnTabPedidos').classList.toggle('active', aba === 'pedidos');
-      document.getElementById('btnTabSuporte').classList.toggle('active', aba === 'suporte');
+    if (!getToken()) {
+      window.location.href = '/login.html';
+    }
 
-      if (aba === 'suporte') carregarSuporte();
-      else carregarPedidos();
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login.html';
     }
 
     async function carregarPedidos() {
       try {
-        const res = await fetch('./api/admin/pedidos', {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${API_URL}/api/admin/pedidos`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          }
         });
 
-        if (res.status === 401 || res.status === 403) return logout();
-
-        const chamados = await res.json();
-        const tbody = document.getElementById('tabelaPedidos');
-
-        if (!Array.isArray(chamados) || chamados.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="no-data">Nenhum chamado registado.</td></tr>';
-          document.getElementById('totalPedidos').innerText = 0;
-          document.getElementById('pedidosPendente').innerText = 0;
-          document.getElementById('pedidosAndamento').innerText = 0;
-          document.getElementById('pedidosConcluido').innerText = 0;
-          document.getElementById('pedidosCancelado').innerText = 0;
+        if (res.status === 401 || res.status === 403) {
+          alert('Sessão expirada. Faça login novamente.');
+          logout();
           return;
         }
 
-        document.getElementById('totalPedidos').innerText = chamados.length;
-        document.getElementById('pedidosPendente').innerText = chamados.filter(p => formatStatus(p.status) === 'pendente').length;
-        document.getElementById('pedidosAndamento').innerText = chamados.filter(p => formatStatus(p.status) === 'em andamento').length;
-        document.getElementById('pedidosConcluido').innerText = chamados.filter(p => formatStatus(p.status) === 'concluído' || formatStatus(p.status) === 'concluido' || formatStatus(p.status) === 'resolvido').length;
-        document.getElementById('pedidosCancelado').innerText = chamados.filter(p => formatStatus(p.status) === 'cancelado').length;
-
-        tbody.innerHTML = '';
-        chamados.slice().reverse().forEach((p) => {
-          const st = formatStatus(p.status);
-          tbody.innerHTML += `
-            <tr>
-              <td><strong>#${p.protocolo || String(p.id).slice(-4)}</strong></td>
-              <td>${p.data || p.createdAt ? new Date(p.data || p.createdAt).toLocaleString('pt-BR') : '-'}</td>
-              <td>${p.nome || '-'}</td>
-              <td>${p.telefone || '-'}</td>
-              <td>${p.servico || '-'}</td>
-              <td>${p.detalhes || p.mensagem || p.endereco || '-'}</td>
-              <td>
-                <select class="status-select" onchange="atualizarStatus('${p.id}', this.value)">
-                  <option value="Pendente" ${st === 'pendente' ? 'selected' : ''}>Pendente</option>
-                  <option value="Em Andamento" ${st === 'em andamento' ? 'selected' : ''}>Em Andamento</option>
-                  <option value="Concluído" ${st === 'concluído' || st === 'concluido' || st === 'resolvido' ? 'selected' : ''}>Concluído</option>
-                  <option value="Cancelado" ${st === 'cancelado' ? 'selected' : ''}>Cancelado</option>
-                </select>
-              </td>
-              <td>
-                <button class="btn-delete" onclick="eliminarPedido('${p.id}')"><i class="fa-solid fa-trash"></i></button>
-              </td>
-            </tr>
-          `;
-        });
+        todosOsPedidos = await res.json();
+        renderizarTabela();
+        atualizarContadores();
       } catch (err) {
-        console.error('Erro ao carregar chamados:', err);
+        console.error('Erro ao carregar pedidos:', err);
       }
     }
 
-    async function carregarSuporte() {
+    async function alterarStatus(id, novoStatus) {
       try {
-        const termo = document.getElementById('pesquisaSuporte').value;
-        const url = termo ? `./api/suporte?protocolo=${termo}` : './api/suporte';
-        const res = await fetch(url);
-        const suportes = await res.json();
-        const tbody = document.getElementById('tabelaSuporte');
-
-        if (!Array.isArray(suportes) || suportes.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="no-data">Nenhuma reclamação registada.</td></tr>';
-          document.getElementById('totalSuporte').innerText = 0;
-          document.getElementById('suportePendente').innerText = 0;
-          document.getElementById('suporteAndamento').innerText = 0;
-          document.getElementById('suporteConcluido').innerText = 0;
-          document.getElementById('suporteCancelado').innerText = 0;
-          return;
-        }
-
-        document.getElementById('totalSuporte').innerText = suportes.length;
-        document.getElementById('suportePendente').innerText = suportes.filter(s => formatStatus(s.status) === 'pendente').length;
-        document.getElementById('suporteAndamento').innerText = suportes.filter(s => formatStatus(s.status) === 'em andamento').length;
-        document.getElementById('suporteConcluido').innerText = suportes.filter(s => formatStatus(s.status) === 'concluído' || formatStatus(s.status) === 'concluido' || formatStatus(s.status) === 'resolvido').length;
-        document.getElementById('suporteCancelado').innerText = suportes.filter(s => formatStatus(s.status) === 'cancelado').length;
-
-        tbody.innerHTML = '';
-        suportes.slice().reverse().forEach((s) => {
-          const st = formatStatus(s.status);
-          tbody.innerHTML += `
-            <tr>
-              <td><strong>#${s.protocolo || String(s.id).slice(-4)}</strong></td>
-              <td>${s.createdAt || s.data ? new Date(s.createdAt || s.data).toLocaleString('pt-BR') : '-'}</td>
-              <td>${s.nome || '-'}</td>
-              <td>${s.telefone || '-'}</td>
-              <td>${s.detalhes || s.mensagem || '-'}</td>
-              <td>
-                <select class="status-select" onchange="atualizarStatusSuporte('${s.id}', this.value)">
-                  <option value="Pendente" ${st === 'pendente' ? 'selected' : ''}>Pendente</option>
-                  <option value="Em Andamento" ${st === 'em andamento' ? 'selected' : ''}>Em Andamento</option>
-                  <option value="Concluído" ${st === 'concluído' || st === 'concluido' || st === 'resolvido' ? 'selected' : ''}>Resolvido</option>
-                  <option value="Cancelado" ${st === 'cancelado' ? 'selected' : ''}>Cancelado</option>
-                </select>
-              </td>
-              <td>
-                <button class="btn-delete" onclick="eliminarSuporte('${s.id}')"><i class="fa-solid fa-trash"></i></button>
-              </td>
-            </tr>
-          `;
+        const res = await fetch(`${API_URL}/api/admin/pedidos/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({ status: novoStatus })
         });
+
+        if (res.ok) {
+          await carregarPedidos();
+        } else {
+          const erro = await res.json();
+          alert(`Erro ao alterar status: ${erro.mensagem || 'Falha na requisição'}`);
+        }
       } catch (err) {
-        console.error('Erro ao carregar suporte:', err);
+        console.error('Erro ao alterar status:', err);
       }
     }
 
-    async function atualizarStatus(id, status) {
-      await fetch(`./api/admin/pedidos/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status })
+    async function deletarPedido(id) {
+      if (!confirm('Deseja realmente eliminar este pedido?')) return;
+
+      try {
+        const res = await fetch(`${API_URL}/api/admin/pedidos/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${getToken()}`
+          }
+        });
+
+        if (res.ok) {
+          await carregarPedidos();
+        } else {
+          alert('Erro ao eliminar pedido.');
+        }
+      } catch (err) {
+        console.error('Erro ao eliminar pedido:', err);
+      }
+    }
+
+    function trocarAba(status) {
+      abaAtual = status;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.status === status) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
       });
-      carregarPedidos();
+      renderizarTabela();
     }
 
-    async function atualizarStatusSuporte(id, status) {
-      await fetch(`./api/admin/suporte/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status })
+    function renderizarTabela() {
+      const tbody = document.getElementById('tabela-pedidos');
+      tbody.innerHTML = '';
+
+      const pedidosFiltrados = todosOsPedidos.filter(p => {
+        if (abaAtual === 'Todos') return true;
+        return String(p.status).toLowerCase() === String(abaAtual).toLowerCase();
       });
-      carregarSuporte();
-    }
 
-    async function eliminarPedido(id) {
-      if (!confirm('Deseja eliminar este chamado?')) return;
-      await fetch(`./api/admin/pedidos/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      if (pedidosFiltrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Nenhum pedido encontrado nesta aba.</td></tr>`;
+        return;
+      }
+
+      pedidosFiltrados.forEach(pedido => {
+        const idVal = pedido.id || pedido._id;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${pedido.protocolo || idVal}</td>
+          <td>${pedido.nome || 'N/A'}</td>
+          <td>${pedido.telefone || 'N/A'}</td>
+          <td>${pedido.servico || pedido.detalhes || 'N/A'}</td>
+          <td>
+            <select onchange="alterarStatus('${idVal}', this.value)">
+              <option value="Pendente" ${pedido.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+              <option value="Em Andamento" ${pedido.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
+              <option value="Concluído" ${pedido.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
+              <option value="Cancelado" ${pedido.status === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+            </select>
+          </td>
+          <td>
+            <button class="btn-delete" onclick="deletarPedido('${idVal}')">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
       });
-      carregarPedidos();
     }
 
-    async function eliminarSuporte(id) {
-      if (!confirm('Deseja eliminar esta reclamação?')) return;
-      await fetch(`./api/admin/suporte/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      carregarSuporte();
+    function atualizarContadores() {
+      const pendentes = todosOsPedidos.filter(p => p.status === 'Pendente').length;
+      const emAndamento = todosOsPedidos.filter(p => p.status === 'Em Andamento').length;
+      const concluidos = todosOsPedidos.filter(p => p.status === 'Concluído').length;
+
+      document.getElementById('count-pendente').innerText = pendentes;
+      document.getElementById('count-andamento').innerText = emAndamento;
+      document.getElementById('count-concluido').innerText = concluidos;
+      document.getElementById('count-todos').innerText = todosOsPedidos.length;
     }
 
-    function logout() {
-      localStorage.removeItem('token');
-      window.location.href = './index.html';
-    }
-
-    carregarPedidos();
+    document.addEventListener('DOMContentLoaded', carregarPedidos);
   </script>
 </body>
 </html>
