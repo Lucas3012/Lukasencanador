@@ -257,9 +257,26 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
             } else if (estadoAtual === 'orc_telefone') {
                 userData[from].telefone = text
                 userState[from] = 'orc_tipo'
-                await escrever('🔧 *(3/4)* Qual é o *Tipo de Serviço* que deseja orçar?')
+                
+                const categoriasTexto = 
+`🔧 *(3/4)* Escolha uma das categorias abaixo digitando o *número* ou escrevendo:
+
+1️⃣ *Vazamento*
+2️⃣ *Desentupimento*
+3️⃣ *Reparo Geral / Manutenção*`
+
+                await escrever(categoriasTexto)
             } else if (estadoAtual === 'orc_tipo') {
-                userData[from].tipoServico = text
+                if (text === '1' || textNorm.includes('vazamento')) {
+                    userData[from].tipoServico = 'Vazamento'
+                } else if (text === '2' || textNorm.includes('desentupimento')) {
+                    userData[from].tipoServico = 'Desentupimento'
+                } else if (text === '3' || textNorm.includes('reparo') || textNorm.includes('manutencao')) {
+                    userData[from].tipoServico = 'Reparo Geral / Manutenção'
+                } else {
+                    userData[from].tipoServico = text // Caso digite outro texto livre
+                }
+
                 userState[from] = 'orc_descricao'
                 await escrever('📝 *(4/4)* Descreva em detalhes o *Problema / Serviço* que precisa:')
             } else if (estadoAtual === 'orc_descricao') {
@@ -271,8 +288,10 @@ _Digite *0* a qualquer momento para voltar ao menu principal._`
 
 👤 *Nome:* ${userData[from].nome}
 📞 *Telefone:* ${userData[from].telefone}
-🛠️ *Tipo de Serviço:* ${userData[from].tipoServico}
+🛠️ *Categoria:* ${userData[from].tipoServico}
 📝 *Descrição:* ${userData[from].detalhes}
+
+💡 *Obs:* O valor do serviço será informado no local. Registre agora seu chamado!
 
 Escolha uma das opções abaixo:
 
@@ -300,10 +319,10 @@ Escolha uma das opções abaixo:
 📌 *Protocolo:* #${protocolo}
 👤 *Nome:* ${userData[from].nome}
 📞 *Telefone:* ${userData[from].telefone}
-🛠️️ *Serviço:* ${userData[from].tipoServico}
+🛠️ *Categoria:* ${userData[from].tipoServico}
 📝 *Descrição:* ${userData[from].detalhes}
 
-Nossa equipe analisará o seu pedido e enviará a estimativa de valores em instantes!
+Nossa equipe analisará o seu pedido e entrará em contato em breve!
 _Digite *0* para voltar ao menu principal._`
 
                     await escrever(msgSucesso)
@@ -315,7 +334,7 @@ _Digite *0* para voltar ao menu principal._`
 
 👤 *Cliente:* ${userData[from].nome}
 📞 *Contato:* ${userData[from].telefone}
-🛠️ *Serviço:* ${userData[from].tipoServico}
+🛠️ *Categoria:* ${userData[from].tipoServico}
 📝 *Descrição:* ${userData[from].detalhes}`
 
                             await client.sendMessage(GRUPO_JID, { text: mensagemGrupo })
@@ -330,7 +349,7 @@ _Digite *0* para voltar ao menu principal._`
                     await escrever('👍 Entendido! Voltando ao menu principal...')
                     await mostrarMenuPrincipal(from)
                 } else {
-                    await escrever('⚠️ Opção inválida. Digite *1* para Registrar Chamado Agora ou *2* para Voltar ao Menu Inicial.')
+                    await escrever('⚠️ Opção inválida. Digite *1* para Registrar chamado agora ou *2* para Voltar ao menu inicial.')
                 }
             }
         } catch (erro) {
