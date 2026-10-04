@@ -121,12 +121,10 @@ app.post('/api/contacto', async (req, res) => {
     data: new Date().toISOString()
   };
 
-  // 1. Guardar no JSON local
   const chamados = readJSON(chamadosPath);
   chamados.push(novoChamado);
   writeJSON(chamadosPath, chamados);
 
-  // 2. Guardar no MongoDB
   if (mongoose.connection.readyState === 1) {
     try {
       await ChamadoModel.create(novoChamado);
@@ -214,12 +212,10 @@ app.post('/api/suporte', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    // 1. Guardar no JSON local
     const suporteList = readJSON(suportePath);
     suporteList.push(novoSuporte);
     writeJSON(suportePath, suporteList);
 
-    // 2. Guardar no MongoDB
     if (mongoose.connection.readyState === 1) {
       await SuporteModel.create(novoSuporte);
     }
@@ -229,6 +225,25 @@ app.post('/api/suporte', async (req, res) => {
     console.error("Erro ao salvar suporte:", error);
     return res.status(500).json({ sucesso: false, mensagem: 'Erro interno ao guardar suporte.' });
   }
+});
+
+// ROTA PARA ATUALIZAR STATUS DE SUPORTE
+app.patch('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const suporteList = readJSON(suportePath);
+  const index = suporteList.findIndex(s => s.id == id);
+  if (index !== -1) {
+    suporteList[index].status = status;
+    writeJSON(suportePath, suporteList);
+  }
+
+  if (mongoose.connection.readyState === 1) {
+    await SuporteModel.updateOne({ id: Number(id) }, { status });
+  }
+
+  res.json({ sucesso: true });
 });
 
 app.delete('/api/admin/suporte/:id', authenticateToken, async (req, res) => {
