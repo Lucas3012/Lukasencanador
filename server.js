@@ -121,13 +121,11 @@ app.post('/api/admin/login', (req, res) => {
 
 // --- ROTAS DE PEDIDOS / CHAMADOS ---
 
-// Obter todos os pedidos (Admin)
 app.get('/api/admin/pedidos', authenticateToken, (req, res) => {
   const pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
   res.json(pedidos);
 });
 
-// Novo pedido público
 app.post('/api/contacto', (req, res) => {
   const { nome, telefone, servico, mensagem } = req.body;
   if (!nome || !telefone || !servico) {
@@ -150,7 +148,6 @@ app.post('/api/contacto', (req, res) => {
   res.json({ sucesso: true, pedido: novoPedido });
 });
 
-// Atualizar status de um pedido
 app.patch('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -165,7 +162,6 @@ app.patch('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
   res.status(404).json({ sucesso: false, mensagem: 'Pedido não encontrado' });
 });
 
-// Eliminar pedido (Admin)
 app.delete('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   let pedidos = readJSON(path.join(__dirname, 'pedidos.json'));
@@ -181,36 +177,80 @@ app.delete('/api/admin/pedidos/:id', authenticateToken, (req, res) => {
 
 // --- ROTAS DE SUPORTE ---
 
-// Obter lista de suporte (Pública ou por ID/Protocolo)
+// Lê da raiz ou da pasta do Bot (chamados.json / suporte.json)
 app.get('/api/suporte', (req, res) => {
   const { protocolo } = req.query;
-  const suporteList = readJSON(path.join(__dirname, 'suporte.json'));
+  
+  let suporteList = readJSON(path.join(__dirname, 'suporte.json'));
+  if (suporteList.length === 0) {
+    suporteList = readJSON(path.join(__dirname, 'Botencanador', 'chamados.json'));
+  }
 
   if (protocolo) {
-    const filtrado = suporteList.filter(s => String(s.id).includes(protocolo) || (s.protocolo && s.protocolo.includes(protocolo)));
+    const filtrado = suporteList.filter(s => 
+      String(s.id).includes(protocolo) || 
+      (s.protocolo && String(s.protocolo).includes(protocolo))
+    );
     return res.json(filtrado);
   }
 
   res.json(suporteList);
 });
 
-// Eliminar item de suporte (Admin)
+app.post('/api/suporte', (req, res) => {
+  try {
+    const { nome, telefone, mensagem, detalhes, protocolo } = req.body;
+    const suporteList = readJSON(path.join(__dirname, 'suporte.json'));
+
+    const novoSuporte = {
+      id: Date.now(),
+      protocolo: protocolo || String(Math.floor(1000 + Math.random() * 9000)),
+      nome: nome || 'Cliente WhatsApp',
+      telefone: telefone || 'Não informado',
+      detalhes: detalhes || mensagem || 'Sem descrição',
+      mensagem: mensagem || detalhes || 'Sem descrição',
+      status: 'Pendente',
+      createdAt: new Date().toISOString()
+    };
+
+    suporteList.push(novoSuporte);
+    writeJSON(path.join(__dirname, 'suporte.json'), suporteList);
+
+    return res.json({ sucesso: true, suporte: novoSuporte });
+  } catch (error) {
+    console.error("Erro ao salvar suporte:", error);
+    return res.status(500).json({ sucesso: false, mensagem: 'Erro ao guardar suporte.' });
+  }
+});
+
 app.delete('/api/admin/suporte/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
+  
   let suporteList = readJSON(path.join(__dirname, 'suporte.json'));
-  const inicial = suporteList.length;
+  let inicial = suporteList.length;
   suporteList = suporteList.filter(s => s.id != id);
 
   if (suporteList.length < inicial) {
     writeJSON(path.join(__dirname, 'suporte.json'), suporteList);
-    return res.json({ sucesso: true, mensagem: 'Atendimento de suporte eliminado com sucesso' });
+    return res.json({ sucesso: true, mensagem: 'Eliminado com sucesso' });
   }
-  res.status(404).json({ sucesso: false, mensagem: 'Registo de suporte não encontrado' });
+
+  // Tenta eliminar no chamados.json caso esteja lá
+  let chamadosList = readJSON(path.join(__dirname, 'Botencanador', 'chamados.json'));
+  inicial = chamadosList.length;
+  chamadosList = chamadosList.filter(s => s.id != id);
+
+  if (chamadosList.length < inicial) {
+    writeJSON(path.join(__dirname, 'Botencanador', 'chamados.json'), chamadosList);
+    return res.json({ sucesso: true, mensagem: 'Eliminado de chamados.json com sucesso' });
+  }
+
+  res.status(404).json({ sucesso: false, mensagem: 'Registo não encontrado' });
 });
 
-// Inicialização do servidor + Execução do Bot
+// Inicialização
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌐 Servidor API e Web a rodar na porta ${PORT}`);
+  console.log(`🌐 Servidor a rodar na porta ${PORT}`);
   
   try {
     const botPath = fs.existsSync(path.join(__dirname, 'Botencanador', 'index.js'))
@@ -218,8 +258,8 @@ app.listen(PORT, '0.0.0.0', () => {
       : './index.js';
     
     require(botPath);
-    console.log('🤖 Bot do WhatsApp inicializado junto com o servidor!');
+    console.log('🤖 Bot do WhatsApp inicializado!');
   } catch (err) {
-    console.error('❌ Erro ao inicializar o Bot do WhatsApp:', err.message);
+    console.error('❌ Erro ao inicializar o Bot:', err.message);
   }
 });
