@@ -18,7 +18,6 @@ let GRUPO_SUPORTE_JID = null
 
 let clienteAtual = null
 
-// --- SCHEMAS UNIFICADOS NO MONGODB ---
 const AtendimentoSchema = new mongoose.Schema({
     protocolo: { type: String, required: true, unique: true },
     nome: String,
@@ -26,28 +25,24 @@ const AtendimentoSchema = new mongoose.Schema({
     endereco: String,
     tipoServico: String,
     detalhes: String,
-    origem: String, // 'Agendamento', 'Orçamento', 'Emergência', 'Suporte'
+    origem: String,
     status: { type: String, default: 'Pendente' },
     createdAt: { type: Date, default: Date.now }
 });
 
 const AtendimentoModel = mongoose.models.Chamado || mongoose.model('Chamado', AtendimentoSchema);
 
-// Função exclusiva para salvar diretamente no MongoDB Atlas
 async function salvarNoMongo(dados) {
     try {
         if (mongoose.connection.readyState === 1) {
             await AtendimentoModel.create(dados);
             console.log(`💾 Atendimento #${dados.protocolo} salvo com sucesso no MongoDB!`);
             return true;
-        } else {
-            console.error('❌ MongoDB não está conectado no momento de salvar.');
-            return false;
         }
     } catch (err) {
         console.error('❌ Erro ao salvar no MongoDB:', err.message);
-        return false;
     }
+    return false;
 }
 
 async function buscarAtendimentoNoMongo(protocolo) {
@@ -55,13 +50,10 @@ async function buscarAtendimentoNoMongo(protocolo) {
         if (mongoose.connection.readyState === 1) {
             return await AtendimentoModel.findOne({ protocolo }).lean();
         }
-    } catch (e) {
-        console.error('Erro ao buscar no Mongo:', e.message);
-    }
+    } catch (e) {}
     return null;
 }
 
-// Controle de Estados e Dados de Usuário na memória
 const userState = {} 
 const userData = {}
 const gerarProtocolo = () => Math.floor(1000 + Math.random() * 9000).toString()
@@ -91,7 +83,6 @@ async function limparSessaoInvalida() {
     try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.connection.collection('sessions').deleteMany({})
-            console.log('🧹 Coleção de sessões limpa no MongoDB.')
         }
     } catch (err) {}
     try {
@@ -162,7 +153,6 @@ async function ligarbot() {
     clienteAtual = client
     client.ev.on('creds.update', saveCreds)
 
-    // --- MANIPULADOR DE MENSAGENS E PERSISTÊNCIA NO MONGODB ---
     client.ev.on('messages.upsert', async ({ messages, type }) => {
         try {
             if (type !== 'notify') return
@@ -200,7 +190,6 @@ async function ligarbot() {
                     await escrever(`📋 *${userData[from].tipoOperacao}*: Por favor, digite o seu *Nome Completo*:`)
 
                 } else if (text === '3') {
-                    // Opção 3: Emergência 24h
                     const prot = gerarProtocolo()
                     const fone = from.replace(/[^0-9]/g, '')
                     
@@ -221,7 +210,6 @@ async function ligarbot() {
                     await escrever(`🚨 *ALERTA DE EMERGÊNCIA REGISTRADO!*\n\n📌 *Protocolo:* #${prot}\n\nO nosso técnico foi notificado e entrará em contacto imediatamente!`);
 
                 } else if (text === '4') {
-                    // Opção 4: Status do Pedido
                     userState[from] = 'aguardando_protocolo'
                     await escrever('🔍 Por favor, digite o seu código de *Protocolo* (ex: 4582):');
 
@@ -244,7 +232,6 @@ async function ligarbot() {
                     await escrever(infoServico);
 
                 } else if (text === '7') {
-                    // Opção 7: Suporte / Reclamações / Atendente Humano
                     userData[from].tipoOperacao = 'Suporte / Reclamação';
                     userState[from] = 'aguardando_nome_suporte';
                     await escrever(`👨‍🔧 *Atendimento Humano / Reclamação*\n\nPor favor, digite o seu *Nome Completo*:`);
@@ -255,8 +242,13 @@ async function ligarbot() {
 
             } else if (estado === 'aguardando_nome') {
                 userData[from].nome = text;
+                userState[from] = 'aguardando_telefone';
+                await escrever(`📞 Obrigado, *${text}*. Agora digite o seu *Número de Telefone* (com DDD):`);
+
+            } else if (estado === 'aguardando_telefone') {
+                userData[from].telefone = text;
                 userState[from] = 'aguardando_endereco';
-                await escrever(`📍 Obrigado, *${text}*. Agora digite o seu *Endereço Completo* (Com Ponto de Referência):`);
+                await escrever(`📍 Perfeito. Agora informe o seu *Endereço Completo* (Com Ponto de Referência):`);
 
             } else if (estado === 'aguardando_endereco') {
                 userData[from].endereco = text;
@@ -266,14 +258,13 @@ async function ligarbot() {
             } else if (estado === 'aguardando_detalhes') {
                 userData[from].detalhes = text;
                 const prot = gerarProtocolo();
-                const fone = from.replace(/[^0-9]/g, '');
+                const foneContato = userData[from].telefone || from.replace(/[^0-9]/g, '');
                 const tipo = userData[from].tipoOperacao || 'Agendamento/Orçamento';
 
-                // Salva exclusivamente no MongoDB Atlas
                 await salvarNoMongo({
                     protocolo: prot,
                     nome: userData[from].nome,
-                    telefone: fone,
+                    telefone: foneContato,
                     endereco: userData[from].endereco,
                     tipoServico: tipo,
                     detalhes: userData[from].detalhes,
@@ -282,7 +273,7 @@ async function ligarbot() {
 
                 const msgGrupo = `📋 *NOVO ${tipo.toUpperCase()} REGISTRADO (#${prot})*\n\n` +
                     `👤 *Cliente:* ${userData[from].nome}\n` +
-                    `📱 *Contato:* https://wa.me/${fone}\n` +
+                    `📱 *Contato:* https://wa.me/${foneContato.replace(/[^0-9]/g, '')}\n` +
                     `📍 *Endereço:* ${userData[from].endereco}\n` +
                     `📝 *Detalhes:* ${userData[from].detalhes}`;
 
@@ -291,7 +282,7 @@ async function ligarbot() {
                     await client.sendMessage(targetGroup, { text: msgGrupo });
                 }
 
-                await escrever(`🎉 *${tipo} Registrado com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n👤 *Nome:* ${userData[from].nome}\n📍 *Endereço:* ${userData[from].endereco}\n\nO registo foi guardado no nosso sistema e a equipa entrará em contacto!`);
+                await escrever(`🎉 *${tipo} Registrado com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${foneContato}\n📍 *Endereço:* ${userData[from].endereco}\n\nO registo foi guardado no MongoDB e a equipa entrará em contacto!`);
 
                 userState[from] = 'inicio';
                 userData[from] = {};
@@ -306,7 +297,6 @@ async function ligarbot() {
                 const prot = gerarProtocolo();
                 const fone = from.replace(/[^0-9]/g, '');
 
-                // Salva Suporte/Reclamação exclusivamente no MongoDB Atlas
                 await salvarNoMongo({
                     protocolo: prot,
                     nome: userData[from].nome,
@@ -321,7 +311,7 @@ async function ligarbot() {
                     });
                 }
 
-                await escrever(`👨‍🔧 *Solicitação Registrada com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n\nO seu pedido de suporte/reclamação foi gravado no sistema e enviado à nossa equipa. Aguarde retorno!`);
+                await escrever(`👨‍🔧 *Solicitação Registrada com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n\nO seu pedido foi gravado no sistema. Aguarde retorno!`);
 
                 userState[from] = 'inicio';
                 userData[from] = {};
@@ -329,7 +319,7 @@ async function ligarbot() {
             } else if (estado === 'aguardando_protocolo') {
                 const busca = await buscarAtendimentoNoMongo(text.replace(/[^0-9]/g, ''));
                 if (busca) {
-                    await escrever(`🔎 *Status do Protocolo #${busca.protocolo}*\n\n👤 *Cliente:* ${busca.nome || 'N/I'}\n🛠️ *Tipo:* ${busca.origem || busca.tipoServico}\n📌 *Status Atual:* *${busca.status || 'Pendente'}*\n📅 *Data:* ${new Date(busca.createdAt).toLocaleDateString('pt-BR')}`);
+                    await escrever(`🔎 *Status do Protocolo #${busca.protocolo}*\n\n👤 *Cliente:* ${busca.nome || 'N/I'}\n📞 *Telefone:* ${busca.telefone || 'N/I'}\n🛠️ *Tipo:* ${busca.origem || busca.tipoServico}\n📌 *Status Atual:* *${busca.status || 'Pendente'}*\n📅 *Data:* ${new Date(busca.createdAt).toLocaleDateString('pt-BR')}`);
                 } else {
                     await escrever(`❌ Não encontramos nenhum registo com o protocolo *#${text}* no MongoDB. Verifique o número ou digite *MENU*.`);
                 }
