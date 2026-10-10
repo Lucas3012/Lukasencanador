@@ -8,41 +8,69 @@
 </head>
 <body>
     <header>
-        <div class="logo">🚰 Lukas Encanador</div>
-        <nav>
-            <a href="#servicos">Serviços</a>
-            <a href="#sobre">Sobre</a>
-            <a href="#contacto">Contacto</a>
-            <a href="admin.html" class="btn-admin">🔒 Admin</a>
-        </nav>
+        <div class="header-container">
+            <div class="logo">
+                <span class="logo-icon">🚰</span>
+                <span class="logo-text">Lukas <strong>Encanador</strong></span>
+            </div>
+            
+            <button class="menu-toggle" id="menuToggle" aria-label="Abrir Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <nav id="navMenu">
+                <a href="#servicos">Serviços</a>
+                <a href="#sobre">Sobre</a>
+                <a href="#contacto">Contacto</a>
+                <a href="admin.html" class="nav-admin">🔒 Admin</a>
+            </nav>
+        </div>
     </header>
 
     <section class="hero">
-        <h1>Soluções Rápidas de Canalização</h1>
-        <p>Atendimento rápido, limpo e garantido para a sua casa ou empresa.</p>
-        <div class="hero-buttons">
-            <a href="https://wa.me/5573981070937?text=Olá,%20gostaria%20de%20pedir%20um%20orçamento" class="cta-btn btn-orcamento" target="_blank">🧮 Pedir Orçamento</a>
-            <a href="https://wa.me/5573981070937" class="cta-btn btn-whatsapp" target="_blank">💬 WhatsApp</a>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1>Soluções Rápidas de Canalização</h1>
+            <p>Atendimento rápido, limpo e garantido para a sua casa ou empresa.</p>
+            <div class="hero-buttons">
+                <a href="https://wa.me/5573981070937?text=Olá,%20gostaria%20de%20pedir%20um%20orçamento" class="btn btn-primary" target="_blank">
+                    <span class="btn-icon">🧮</span> Pedir Orçamento
+                </a>
+                <a href="https://wa.me/5573981070937" class="btn btn-whatsapp" target="_blank">
+                    <span class="btn-icon">💬</span> WhatsApp
+                </a>
+            </div>
         </div>
     </section>
 
     <section id="servicos" class="container">
-        <h2>Nossos Serviços</h2>
+        <h2 class="section-title">Nossos Serviços</h2>
         <div class="services-grid">
             <div class="card">
-                <h3>🔍 Caça Vazamentos</h3>
+                <div class="card-icon">🔍</div>
+                <h3>Caça Vazamentos</h3>
                 <p>Detecção precisa com equipamentos modernos sem quebrar desnecessariamente.</p>
             </div>
             <div class="card">
-                <h3>🚿 Desentupimentos</h3>
-                <p>Desentupimento rápido e limpo de pias, ralos, vasos e esgotos.</p>
+                <div class="card-icon">🚿</div>
+                <h3>Desentupimentos</h3>
+                <p>Desentupimento rápido e limpo de pias, ralos, vasos sanitários e esgotos.</p>
             </div>
             <div class="card">
-                <h3>🔧 Instalações e Reparos</h3>
-                <p>Manutenção de caixas d'água, torneiras, válvulas Hydra e registros.</p>
+                <div class="card-icon">🔧</div>
+                <h3>Instalações e Reparos</h3>
+                <p>Manutenção de caixas d'água, torneiras, válvulas Hydra e registros gerais.</p>
             </div>
         </div>
     </section>
+
+    <a href="https://wa.me/5573981070937" class="float-whatsapp" target="_blank" aria-label="WhatsApp">
+        <svg viewBox="0 0 32 32" class="whatsapp-icon">
+            <path d="M16 0c-8.837 0-16 7.163-16 16 0 2.825 0.737 5.607 2.137 8.048l-2.137 7.952 8.135-2.135c2.372 1.298 5.053 1.982 7.865 1.982 8.837 0 16-7.163 16-16s-7.163-16-16-16zM16 29.333c-2.487 0-4.919-0.665-7.051-1.925l-0.505-0.299-5.239 1.374 1.398-5.201-0.329-0.523c-1.383-2.198-2.112-4.738-2.112-7.326 0-7.362 5.989-13.351 13.351-13.351s13.351 5.989 13.351 13.351-5.989 13.351-13.351 13.351z" fill="#FFFFFF"/>
+        </svg>
+    </a>
 
     <footer>
         <p>&copy; 2026 Lukas Encanador. Todos os direitos reservados.</p>
