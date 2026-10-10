@@ -234,7 +234,7 @@ async function ligarbot() {
                         detalhes: '🚨 Chamado de EMERGÊNCIA 24H disparado via WhatsApp.'
                     });
 
-                    const msgEmergencia = `🚨 *ALERTA DE EMERGÊNCIA 24H*\n\n📌 *Protocolo:* #${prot}\n📱 *Telefone:* https://wa.me/${fone}\n⚠️ Cliente solicita atendimento imediato!`;
+                    const msgEmergencia = `🚨 *ALERTA DE EMERGÊNCIA 24H*\n\n📌 *Protocolo:* #${prot}\n📱 *Telefone:* ${fone}\n⚠️ Cliente solicita atendimento imediato!`;
                     await enviarParaGrupoSeguro(GRUPO_SUPORTE_JID, msgEmergencia);
 
                     await escrever(`🚨 *ALERTA DE EMERGÊNCIA REGISTRADO!*\n\n📌 *Protocolo:* #${prot}\n\nO nosso técnico foi notificado e entrará em contacto imediatamente!`);
@@ -279,7 +279,7 @@ async function ligarbot() {
                 await escrever(`📞 Obrigado, *${text}*. Agora digite o seu *Número de Telefone* (com DDD):`);
 
             } else if (estado === 'aguardando_telefone') {
-                userData[from].telefone = text;
+                userData[from].telefone = text.replace(/[^0-9]/g, '');
                 userState[from] = 'aguardando_endereco';
                 await escrever(`📍 Perfeito. Agora informe o seu *Endereço Completo* (Com Ponto de Referência):`);
 
@@ -291,7 +291,7 @@ async function ligarbot() {
             } else if (estado === 'aguardando_detalhes') {
                 userData[from].detalhes = text;
                 const prot = gerarProtocolo();
-                const foneContato = userData[from].telefone || from.replace(/[^0-9]/g, '');
+                const foneContato = (userData[from].telefone || from).replace(/[^0-9]/g, '');
                 const tipo = userData[from].tipoOperacao || 'Agendamento/Orçamento';
 
                 await salvarNoMongo({
@@ -306,7 +306,7 @@ async function ligarbot() {
 
                 const msgGrupo = `📋 *NOVO ${tipo.toUpperCase()} REGISTRADO (#${prot})*\n\n` +
                     `👤 *Cliente:* ${userData[from].nome}\n` +
-                    `📱 *Contato:* https://wa.me/${foneContato.replace(/[^0-9]/g, '')}\n` +
+                    `📱 *Contato:* ${foneContato}\n` +
                     `📍 *Endereço:* ${userData[from].endereco}\n` +
                     `📝 *Detalhes:* ${userData[from].detalhes}`;
 
@@ -336,7 +336,7 @@ async function ligarbot() {
                     detalhes: userData[from].detalhes
                 });
 
-                const msgSuporte = `👨‍🔧 *SUPORTE / RECLAMAÇÃO REGISTRADA (#${prot})*\n\n👤 *Cliente:* ${userData[from].nome}\n📱 *Contato:* https://wa.me/${fone}\n📝 *Mensagem:* ${userData[from].detalhes}`;
+                const msgSuporte = `👨‍🔧 *SUPORTE / RECLAMAÇÃO REGISTRADA (#${prot})*\n\n👤 *Cliente:* ${userData[from].nome}\n📱 *Contato:* ${fone}\n📝 *Mensagem:* ${userData[from].detalhes}`;
                 await enviarParaGrupoSeguro(GRUPO_SUPORTE_JID, msgSuporte);
 
                 await escrever(`👨‍🔧 *Solicitação Registrada com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n\nO seu pedido de suporte/reclamação foi enviado para a equipa responsável. Aguarde retorno!`);
@@ -355,7 +355,7 @@ async function ligarbot() {
             }
 
         } catch (err) {
-            // Silencia erros pontuais de sessões
+            // Silencia erros
         }
     });
 
