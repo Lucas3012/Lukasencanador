@@ -11,15 +11,12 @@ let clienteAtual = null
 let gerandoCodigo = false
 
 async function limparSessaoInvalida() {
-    console.log('🧹 Executando limpeza profunda de sessões...')
     try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.connection.collection('sessions').deleteMany({})
-            console.log('✅ Coleção "sessions" zerada com sucesso no MongoDB!')
+            console.log('🧹 Coleção de sessões zerada com sucesso no MongoDB!')
         }
-    } catch (err) {
-        console.error('Erro ao limpar Mongo:', err.message)
-    }
+    } catch (err) {}
     try {
         if (fs.existsSync('./sessao')) {
             fs.rmSync('./sessao', { recursive: true, force: true })
@@ -61,20 +58,16 @@ async function ligarbot() {
 
     const { version } = await fetchLatestBaileysVersion()
     
-    // Configuração com identificação oficial de navegação
     const client = makeWASocket({
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: ['Chrome (Linux)', 'Chrome', '120.0.0.0'],
+        browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
         markOnlineOnConnect: false,
-        connectTimeoutMs: 90000,
-        defaultQueryTimeoutMs: 90000,
-        keepAliveIntervalMs: 15000,
-        retryRequestOptions: {
-            maxRetries: 5
-        }
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000
     })
 
     clienteAtual = client
@@ -83,20 +76,28 @@ async function ligarbot() {
     client.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update
 
+        if (connection === 'connecting') {
+            console.log('⏳ Estabelecendo conexão segura com o WhatsApp...')
+        }
+
         if (!client.authState.creds.registered && !gerandoCodigo && BOT_NUMBER) {
             gerandoCodigo = true
-            console.log(`📱 Solicitando código de emparelhamento para: ${BOT_NUMBER}...`)
+            console.log(`📱 Aguardando 8 segundos para solicitar código para ${BOT_NUMBER}...`)
             
-            // Aguarda 10 segundos antes de pedir o código para o servidor estabilizar
-            await new Promise(r => setTimeout(r, 10000))
-            
-            try {
-                let codigo = await client.requestPairingCode(BOT_NUMBER)
-                console.log(`\n==============================================`)
-                console.log(`🔑 CÓDIGO DE EMPARELHAMENTO NOVO: ${codigo}`)
-                console.log(`==============================================\n`)
-            } catch (err) {
-                console.error('❌ Erro ao solicitar código:', err.message)
+            await new Promise(r => setTimeout(r, 8000))
+
+            if (client.ws?.readyState === 1) { // Verifica se o socket está aberto antes de solicitar
+                try {
+                    let codigo = await client.requestPairingCode(BOT_NUMBER)
+                    console.log(`\n==============================================`)
+                    console.log(`🔑 CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
+                    console.log(`==============================================\n`)
+                } catch (err) {
+                    console.error('❌ Falha ao gerar código:', err.message)
+                    gerandoCodigo = false
+                }
+            } else {
+                console.log('⚠️ Conexão socket instável, aguardando próxima tentativa...')
                 gerandoCodigo = false
             }
         }
@@ -108,14 +109,13 @@ async function ligarbot() {
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
-            console.log(`🔄 Conexão encerrada (código ${reason}).`)
+            console.log(`🔄 Conexão encerrada (código ${reason || 'desconhecido'}).`)
             gerandoCodigo = false
 
             if (reason === DisconnectReason.loggedOut || reason === 401) {
-                console.log('⚠️ Sessão rejeitada/expirada. Efetuando limpeza completa...')
+                console.log('🧹 Limpando dados para novo pareamento...')
                 await limparSessaoInvalida()
-                // Aguarda 15 segundos para reiniciar e evitar bloqueio por requisições seguidas
-                setTimeout(() => ligarbot(), 15000)
+                setTimeout(() => ligarbot(), 10000)
             } else {
                 setTimeout(() => ligarbot(), 5000)
             }
