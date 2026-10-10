@@ -14,7 +14,7 @@ async function limparSessaoInvalida() {
     try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.connection.collection('sessions').deleteMany({})
-            console.log('🧹 Coleção de sessões zerada com sucesso no MongoDB!')
+            console.log('🧹 Coleção de sessões limpa no MongoDB.')
         }
     } catch (err) {}
     try {
@@ -77,27 +77,23 @@ async function ligarbot() {
         const { connection, lastDisconnect } = update
 
         if (connection === 'connecting') {
-            console.log('⏳ Estabelecendo conexão segura com o WhatsApp...')
+            console.log('⏳ A ligar aos servidores do WhatsApp...')
         }
 
         if (!client.authState.creds.registered && !gerandoCodigo && BOT_NUMBER) {
             gerandoCodigo = true
-            console.log(`📱 Aguardando 8 segundos para solicitar código para ${BOT_NUMBER}...`)
+            console.log(`📱 A preparar geração de código para ${BOT_NUMBER}...`)
             
-            await new Promise(r => setTimeout(r, 8000))
+            // Aguarda 6 segundos para estabilizar o socket de forma segura
+            await new Promise(r => setTimeout(r, 6000))
 
-            if (client.ws?.readyState === 1) { // Verifica se o socket está aberto antes de solicitar
-                try {
-                    let codigo = await client.requestPairingCode(BOT_NUMBER)
-                    console.log(`\n==============================================`)
-                    console.log(`🔑 CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
-                    console.log(`==============================================\n`)
-                } catch (err) {
-                    console.error('❌ Falha ao gerar código:', err.message)
-                    gerandoCodigo = false
-                }
-            } else {
-                console.log('⚠️ Conexão socket instável, aguardando próxima tentativa...')
+            try {
+                let codigo = await client.requestPairingCode(BOT_NUMBER)
+                console.log(`\n==============================================`)
+                console.log(`🔑 CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
+                console.log(`==============================================\n`)
+            } catch (err) {
+                console.error('❌ Falha ao solicitar código:', err.message)
                 gerandoCodigo = false
             }
         }
@@ -113,9 +109,9 @@ async function ligarbot() {
             gerandoCodigo = false
 
             if (reason === DisconnectReason.loggedOut || reason === 401) {
-                console.log('🧹 Limpando dados para novo pareamento...')
+                console.log('🧹 Sessão expirada/inválida. A limpar registos...')
                 await limparSessaoInvalida()
-                setTimeout(() => ligarbot(), 10000)
+                setTimeout(() => ligarbot(), 5000)
             } else {
                 setTimeout(() => ligarbot(), 5000)
             }
