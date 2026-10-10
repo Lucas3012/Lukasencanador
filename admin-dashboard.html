@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Lukas Encanador</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
+        h1 { color: #0275d8; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Painel de Controle - Lukas Encanador</h1>
+    <div id="status">A carregar chamados...</div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            // Se nao tiver token salva localmente
+            console.log('Sem token');
+        }
+    </script>
+</body>
+</html>
