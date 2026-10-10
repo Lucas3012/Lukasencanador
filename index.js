@@ -17,6 +17,7 @@ let GRUPO_ORCAMENTOS_JID = null
 let GRUPO_SUPORTE_JID = null
 
 let clienteAtual = null
+let keepOnlineInterval = null
 
 const AtendimentoSchema = new mongoose.Schema({
     protocolo: { type: String, required: true, unique: true },
@@ -105,6 +106,11 @@ Escolha uma das opções abaixo enviando o número desejado:
 7️⃣ *Falar com Atendente Humano / Reclamações*`
 
 async function ligarbot() {
+    if (keepOnlineInterval) {
+        clearInterval(keepOnlineInterval);
+        keepOnlineInterval = null;
+    }
+
     if (clienteAtual) {
         try {
             clienteAtual.ev.removeAllListeners()
@@ -335,8 +341,17 @@ async function ligarbot() {
         const { connection, lastDisconnect } = update;
 
         if (connection === 'open') {
-            console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!');
+            console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP (MODO 24/7 ONLINE ATIVADO)!');
             await client.sendPresenceUpdate('available');
+
+            // Mantém o status "Online" continuamente a cada 30 segundos
+            keepOnlineInterval = setInterval(async () => {
+                try {
+                    if (clienteAtual) {
+                        await clienteAtual.sendPresenceUpdate('available');
+                    }
+                } catch (e) {}
+            }, 30000);
 
             GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS);
             GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS);
@@ -344,6 +359,11 @@ async function ligarbot() {
         }
         
         if (connection === 'close') {
+            if (keepOnlineInterval) {
+                clearInterval(keepOnlineInterval);
+                keepOnlineInterval = null;
+            }
+
             const reason = lastDisconnect?.error?.output?.statusCode;
             console.log(`🔄 Conexão encerrada (código ${reason || 'desconhecido'}).`);
 
