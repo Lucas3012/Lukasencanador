@@ -13,6 +13,7 @@
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
+            --share: #0284c7;
             --bg: #f8fafc;
             --card-bg: #ffffff;
             --text-main: #0f172a;
@@ -74,10 +75,11 @@
         .badge-concluido { background: #d1fae5; color: #065f46; }
         .badge-cancelado { background: #fee2e2; color: #991b1b; }
 
-        .action-btns { display: flex; gap: 8px; }
-        .btn-action { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.2s; }
+        .action-btns { display: flex; gap: 6px; }
+        .btn-action { padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.2s; display: inline-flex; align-items: center; gap: 4px; }
         .btn-edit { background: #e0f2fe; color: #0369a1; }
         .btn-delete { background: #fee2e2; color: #991b1b; }
+        .btn-share { background: #e0f2fe; color: #0284c7; }
         .btn-action:hover { opacity: 0.8; }
 
         /* MODAL DE EDIÇÃO */
@@ -315,6 +317,7 @@
                         <div class="action-btns">
                             <button class="btn-action btn-edit" onclick="abrirEdicao('${item.protocolo}')">Editar</button>
                             <button class="btn-action btn-delete" onclick="excluirAtendimento('${item.protocolo}')">Excluir</button>
+                            <button class="btn-action btn-share" onclick="compartilharAtendimento('${item.protocolo}')" title="Compartilhar Chamado">📤</button>
                         </div>
                     </td>
                 `;
@@ -391,6 +394,34 @@
                 carregarAtendimentos();
             })
             .catch(() => showToast('Erro ao excluir registro.', 'danger'));
+        }
+
+        function compartilharAtendimento(protocolo) {
+            const item = todosAtendimentos.find(a => a.protocolo === protocolo);
+            if (!item) return;
+
+            const textoCompartilhar = `📋 *ATENDIMENTO ATUALIZADO (#${item.protocolo})*\n\n` +
+                `👤 *Cliente:* ${item.nome || 'Não informado'}\n` +
+                `📱 *Contato:* https://wa.me/${item.telefone || ''}\n` +
+                `📌 *Status:* ${item.status || 'Pendente'}\n` +
+                `🛠️ *Tipo:* ${item.origem || item.tipoServico || 'Geral'}\n` +
+                `${item.endereco ? '📍 *Endereço:* ' + item.endereco + '\n' : ''}` +
+                `📝 *Detalhes:* ${item.detalhes || 'Sem observações'}`;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: `Atendimento #${item.protocolo}`,
+                    text: textoCompartilhar
+                }).then(() => {
+                    showToast('Compartilhado com sucesso!');
+                }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(textoCompartilhar).then(() => {
+                    showToast('Informações copiadas para a área de transferência!');
+                }).catch(() => {
+                    showToast('Erro ao copiar dados.', 'danger');
+                });
+            }
         }
 
         window.onload = verificarAutenticacao;
