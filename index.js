@@ -147,7 +147,7 @@ async function ligarbot() {
     const client = makeWASocket({
         version,
         auth: state,
-        logger: pino({ level: 'fatal' }), // Ignora avisos internos de Bad MAC
+        logger: pino({ level: 'fatal' }),
         browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
         markOnlineOnConnect: true,
@@ -214,7 +214,7 @@ async function ligarbot() {
                 const isOpcao3 = text === '3' || txtNorm.includes('emergencia') || txtNorm.includes('urgente') || txtNorm.includes('inundacao') || txtNorm.includes('socorro');
                 const isOpcao4 = text === '4' || txtNorm.includes('status') || txtNorm.includes('acompanhar') || txtNorm.includes('protocolo') || txtNorm.includes('pedido');
                 const isOpcao5 = text === '5' || txtNorm.includes('tabela') || txtNorm.includes('preco') || txtNorm.includes('precos') || txtNorm.includes('servicos');
-                const isOpcao6 = text === '6' || txtNorm.includes('horario') || txtNorm.includes('regiao') || txtNorm.includes('cidade') || txtNorm.includes('atende');
+                const isOpcao6 = text === '6' || txtNorm.includes('horario') || txtNorm.includes('regiao') || txtNorm.includes('cidade') || txtNorm.includes('atende') || txtNorm.includes('itabuna') || txtNorm.includes('ilheus') || txtNorm.includes('itape');
                 const isOpcao7 = text === '7' || txtNorm.includes('atendente') || txtNorm.includes('humano') || txtNorm.includes('reclamacao') || txtNorm.includes('suporte') || txtNorm.includes('falar');
 
                 if (isOpcao1 || isOpcao2) {
@@ -257,7 +257,10 @@ async function ligarbot() {
                     const infoServico = `📍 *Região de Atendimento & Horários*\n\n` +
                         `⏰ *Horário:* Segunda a Sábado das 07h às 19h\n` +
                         `🚨 *Plantão 24h:* Disponível para Emergências\n\n` +
-                        `🏙️ *Cidades Atendidas:* Centro e região metropolitana.\n\n` +
+                        `🏙️ *Cidades Atendidas:* \n` +
+                        `• Itabuna\n` +
+                        `• Ilhéus\n` +
+                        `• Itapé\n\n` +
                         `Digite *MENU* para voltar.`;
                     await escrever(infoServico);
 
@@ -352,7 +355,7 @@ async function ligarbot() {
             }
 
         } catch (err) {
-            // Silencia erros pontuais de sessões/Bad MAC
+            // Silencia erros pontuais de sessões
         }
     });
 
