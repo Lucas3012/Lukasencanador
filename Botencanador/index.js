@@ -93,17 +93,33 @@ async function limparSessaoInvalida() {
     } catch (err) {}
 }
 
-const MENU_PRINCIPAL = `👋 *Atendimento Lukas Encanador*
+const MENU_PRINCIPAL = `✨ *Lukas Encanador - Soluções em Canalização* ✨
+____________________________________
 
-Escolha uma das opções abaixo enviando o número ou escrevendo o que deseja:
+Olá! Como podemos te ajudar hoje? Digite o *número* da opção desejada:
 
-1️⃣ *Agendar Serviço* (Vazamentos, Instalações, Desentupimentos)
-2️⃣ *Solicitar Orçamento Gratuito*
-3️⃣ *Emergência 24h* (Inundação, Vazamento Grave)
-4️⃣ *Verificar Status do Pedido / Chamado*
-5️⃣ *Tabela de Serviços e Preços Base*
-6️⃣ *Horários de Atendimento e Região*
-7️⃣ *Falar com Atendente Humano / Reclamações*`
+1️⃣  *Agendar Serviço*
+     ↳ Vazamentos, Instalações e Desentupimentos
+
+2️⃣  *Solicitar Orçamento Gratuito*
+     ↳ Envie fotos e detalhes do seu problema
+
+3️⃣  *Atendimento de Emergência 24h*
+     ↳ Inundações, canos estourados ou vazamentos graves
+
+4️⃣  *Consultar Chamado / Protocolo*
+     ↳ Acompanhe o status em tempo real
+
+5️⃣  *Tabela de Serviços & Preços Base*
+     ↳ Valores e estimativas de manutenção
+
+6️⃣  *Região Atendida & Horários*
+     ↳ Cidades atendidas: Itabuna, Ilhéus e Itapé
+
+7️⃣  *Falar com Atendente / Suporte*
+     ↳ Tiras dúvidas ou enviar uma reclamação
+____________________________________
+💬 _Digite a qualquer momento *MENU* para retornar._`
 
 async function ligarbot() {
     if (keepOnlineInterval) {
