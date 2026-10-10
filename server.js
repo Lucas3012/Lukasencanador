@@ -9,6 +9,10 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'minha_chave_secreta_local';
 const MONGO_URI = process.env.MONGO_URI;
 
+// Credenciais do Painel Admin (pode ser configurado via variáveis no Render)
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -22,11 +26,72 @@ app.use(express.static(__dirname));
 
 let botModule = null;
 
-app.get('/', (req, res) => {
+// Schema do MongoDB para consulta dos atendimentos no Admin
+const AtendimentoSchema = new mongoose.Schema({
+    protocolo: { type: String, required: true, unique: true },
+    nome: String,
+    telefone: String,
+    endereco: String,
+    tipoServico: String,
+    detalhes: String,
+    origem: String,
+    status: { type: String, default: 'Pendente' },
+    createdAt: { type: Date, default: Date.now }
+});
+
+const AtendimentoModel = mongoose.models.Chamado || mongoose.model('Chamado', AtendimentoSchema);
+
+// Middleware para verificar JWT no Admin
+function autenticarToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ mensagem: 'Acesso negado. Token não fornecido.' });
+
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) return res.status(403).json({ mensagem: 'Token inválido ou expirado.' });
+    req.user = user;
+    next();
+  });
+}
+
+// Rota principal carrega o Dashboard Admin
+app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-dashboard.html'));
 });
 
-// Rota para visualizar o QR Code na Web
+// Rota de Login do Painel Admin
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '7d' });
+    return res.json({ token, mensagem: 'Login realizado com sucesso!' });
+  }
+  return res.status(401).json({ mensagem: 'Usuário ou senha incorretos.' });
+});
+
+// Rota para listar todos os Atendimentos (MongoDB)
+app.get('/api/atendimentos', autenticarToken, async (req, res) => {
+  try {
+    const lista = await AtendimentoModel.find().sort({ createdAt: -1 }).lean();
+    res.json(lista);
+  } catch (err) {
+    res.status(500).json({ mensagem: 'Erro ao buscar atendimentos no MongoDB.' });
+  }
+});
+
+// Rota para atualizar o status do atendimento (Ex: Pendente -> Concluído)
+app.patch('/api/atendimentos/:protocolo', autenticarToken, async (req, res) => {
+  try {
+    const { protocolo } = req.params;
+    const { status } = req.body;
+    await AtendimentoModel.updateOne({ protocolo }, { status });
+    res.json({ mensagem: 'Status atualizado com sucesso!' });
+  } catch (err) {
+    res.status(500).json({ mensagem: 'Erro ao atualizar status.' });
+  }
+});
+
+// Rota visual para abrir o QR Code no navegador
 app.get('/qr', (req, res) => {
   const qr = botModule && botModule.getQRCode ? botModule.getQRCode() : null;
   if (!qr) {
@@ -42,7 +107,6 @@ app.get('/qr', (req, res) => {
     <div style="text-align:center; padding: 30px; font-family: Arial;">
       <h2>Escaneie o QR Code com o seu WhatsApp</h2>
       <img src="${qr}" style="width: 300px; height: 300px;" />
-      <p>Abra o WhatsApp > Aparelhos Conectados > Conectar um aparelho</p>
       <script>setTimeout(() => location.reload(), 10000);</script>
     </div>
   `);
