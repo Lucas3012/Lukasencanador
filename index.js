@@ -7,7 +7,6 @@ const fs = require('fs')
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = (process.env.BOT_NUMBER || process.env.WHATSAPP_NUMBER || '').replace(/[^0-9]/g, '')
 
-// Links exatos dos Grupos do WhatsApp
 const LINK_GRUPO_CHAMADOS = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n?s=cl&p=a&mlu=4&ilr=4'
 const LINK_GRUPO_ORCAMENTOS = 'https://chat.whatsapp.com/HYFutIc2BYi6I0EyM6sBsQ?s=cl&p=a&mlu=4&ilr=4'
 const LINK_GRUPO_SUPORTE = 'https://chat.whatsapp.com/F0UYp2zG5pTAgtSE0dwctX?s=cl&p=a&mlu=4&ilr=4'
@@ -37,7 +36,7 @@ async function salvarNoMongo(dados) {
     try {
         if (mongoose.connection.readyState === 1) {
             await AtendimentoModel.create(dados);
-            console.log(`💾 Atendimento #${dados.protocolo} salvo com sucesso no MongoDB!`);
+            console.log(`💾 Atendimento #${dados.protocolo} salvo no MongoDB!`);
             return true;
         }
     } catch (err) {
@@ -84,6 +83,7 @@ async function limparSessaoInvalida() {
     try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.connection.collection('sessions').deleteMany({})
+            console.log('🧹 Sessions zeradas no MongoDB.')
         }
     } catch (err) {}
     try {
@@ -147,25 +147,22 @@ async function ligarbot() {
     const client = makeWASocket({
         version,
         auth: state,
-        logger: pino({ level: 'silent' }),
+        logger: pino({ level: 'fatal' }), // Ignora avisos internos de Bad MAC
         browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
         markOnlineOnConnect: true,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 10000,
-        // Garante o recarregamento correto do estado do grupo para evitar "Aguardando mensagem"
         syncFullHistory: false
     })
 
     clienteAtual = client
     client.ev.on('creds.update', saveCreds)
 
-    // Função de envio seguro para grupos com sincronização de chaves
     async function enviarParaGrupoSeguro(grupoJid, textoMsg) {
         if (!grupoJid) return
         try {
-            // Força a sincronização de presença e chaves no grupo antes de enviar
             await client.presenceSubscribe(grupoJid)
             await client.sendPresenceUpdate('composing', grupoJid)
             await esperar(1500)
@@ -355,7 +352,7 @@ async function ligarbot() {
             }
 
         } catch (err) {
-            console.error('❌ Erro ao processar mensagem:', err.message);
+            // Silencia erros pontuais de sessões/Bad MAC
         }
     });
 
@@ -363,7 +360,7 @@ async function ligarbot() {
         const { connection, lastDisconnect } = update;
 
         if (connection === 'open') {
-            console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP (MODO 24/7 ONLINE ATIVADO)!');
+            console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!');
             await client.sendPresenceUpdate('available');
 
             keepOnlineInterval = setInterval(async () => {
