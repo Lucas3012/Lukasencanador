@@ -153,11 +153,28 @@ async function ligarbot() {
         markOnlineOnConnect: true,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 10000
+        keepAliveIntervalMs: 10000,
+        // Garante o recarregamento correto do estado do grupo para evitar "Aguardando mensagem"
+        syncFullHistory: false
     })
 
     clienteAtual = client
     client.ev.on('creds.update', saveCreds)
+
+    // Função de envio seguro para grupos com sincronização de chaves
+    async function enviarParaGrupoSeguro(grupoJid, textoMsg) {
+        if (!grupoJid) return
+        try {
+            // Força a sincronização de presença e chaves no grupo antes de enviar
+            await client.presenceSubscribe(grupoJid)
+            await client.sendPresenceUpdate('composing', grupoJid)
+            await esperar(1500)
+            await client.sendMessage(grupoJid, { text: textoMsg })
+            await client.sendPresenceUpdate('paused', grupoJid)
+        } catch (e) {
+            console.error('Erro ao enviar mensagem para grupo:', e.message)
+        }
+    }
 
     client.ev.on('messages.upsert', async ({ messages, type }) => {
         try {
@@ -195,7 +212,6 @@ async function ligarbot() {
             }
 
             if (estado === 'inicio') {
-                // Reconhecimento por Número OU por Escrita
                 const isOpcao1 = text === '1' || txtNorm.includes('agendar') || txtNorm.includes('agendamento') || txtNorm.includes('visita') || txtNorm.includes('desentupir') || txtNorm.includes('vazamento');
                 const isOpcao2 = text === '2' || txtNorm.includes('orcamento') || txtNorm.includes('cotacao') || txtNorm.includes('valor') || txtNorm.includes('quanto custa');
                 const isOpcao3 = text === '3' || txtNorm.includes('emergencia') || txtNorm.includes('urgente') || txtNorm.includes('inundacao') || txtNorm.includes('socorro');
@@ -221,11 +237,8 @@ async function ligarbot() {
                         detalhes: '🚨 Chamado de EMERGÊNCIA 24H disparado via WhatsApp.'
                     });
 
-                    if (GRUPO_SUPORTE_JID) {
-                        await client.sendMessage(GRUPO_SUPORTE_JID, {
-                            text: `🚨 *ALERTA DE EMERGÊNCIA 24H*\n\n📌 *Protocolo:* #${prot}\n📱 *Telefone:* https://wa.me/${fone}\n⚠️ Cliente solicita atendimento imediato!`
-                        });
-                    }
+                    const msgEmergencia = `🚨 *ALERTA DE EMERGÊNCIA 24H*\n\n📌 *Protocolo:* #${prot}\n📱 *Telefone:* https://wa.me/${fone}\n⚠️ Cliente solicita atendimento imediato!`;
+                    await enviarParaGrupoSeguro(GRUPO_SUPORTE_JID, msgEmergencia);
 
                     await escrever(`🚨 *ALERTA DE EMERGÊNCIA REGISTRADO!*\n\n📌 *Protocolo:* #${prot}\n\nO nosso técnico foi notificado e entrará em contacto imediatamente!`);
 
@@ -298,9 +311,7 @@ async function ligarbot() {
                     `📝 *Detalhes:* ${userData[from].detalhes}`;
 
                 const targetGroup = (tipo === 'Agendamento' ? GRUPO_CHAMADOS_JID : GRUPO_ORCAMENTOS_JID);
-                if (targetGroup) {
-                    await client.sendMessage(targetGroup, { text: msgGrupo });
-                }
+                await enviarParaGrupoSeguro(targetGroup, msgGrupo);
 
                 await escrever(`🎉 *${tipo} Registrado com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${foneContato}\n📍 *Endereço:* ${userData[from].endereco}\n\nO registo foi guardado no MongoDB e enviado para a nossa equipa!`);
 
@@ -325,11 +336,8 @@ async function ligarbot() {
                     detalhes: userData[from].detalhes
                 });
 
-                if (GRUPO_SUPORTE_JID) {
-                    await client.sendMessage(GRUPO_SUPORTE_JID, {
-                        text: `👨‍🔧 *SUPORTE / RECLAMAÇÃO REGISTRADA (#${prot})*\n\n👤 *Cliente:* ${userData[from].nome}\n📱 *Contato:* https://wa.me/${fone}\n📝 *Mensagem:* ${userData[from].detalhes}`
-                    });
-                }
+                const msgSuporte = `👨‍🔧 *SUPORTE / RECLAMAÇÃO REGISTRADA (#${prot})*\n\n👤 *Cliente:* ${userData[from].nome}\n📱 *Contato:* https://wa.me/${fone}\n📝 *Mensagem:* ${userData[from].detalhes}`;
+                await enviarParaGrupoSeguro(GRUPO_SUPORTE_JID, msgSuporte);
 
                 await escrever(`👨‍🔧 *Solicitação Registrada com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n\nO seu pedido de suporte/reclamação foi enviado para a equipa responsável. Aguarde retorno!`);
 
