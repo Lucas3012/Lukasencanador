@@ -55,10 +55,8 @@ function autenticarToken(req, res, next) {
 app.get('/admin', (req, res) => {
   if (fs.existsSync(path.join(__dirname, 'admin.html'))) {
     res.sendFile(path.join(__dirname, 'admin.html'));
-  } else if (fs.existsSync(path.join(__dirname, 'admin-dashboard.html'))) {
-    res.sendFile(path.join(__dirname, 'admin-dashboard.html'));
   } else {
-    res.status(404).send('Página admin não encontrada.');
+    res.sendFile(path.join(__dirname, 'admin-dashboard.html'));
   }
 });
 
@@ -72,7 +70,7 @@ app.post('/api/login', (req, res) => {
   return res.status(401).json({ mensagem: 'Usuário ou senha incorretos.' });
 });
 
-// Endpoint para buscar Atendimentos
+// GET: Listar todos os atendimentos
 app.get('/api/atendimentos', autenticarToken, async (req, res) => {
   try {
     const lista = await AtendimentoModel.find().sort({ createdAt: -1 }).lean();
@@ -82,15 +80,26 @@ app.get('/api/atendimentos', autenticarToken, async (req, res) => {
   }
 });
 
-// Endpoint para atualizar Status
+// PATCH: Editar dados ou status
 app.patch('/api/atendimentos/:protocolo', autenticarToken, async (req, res) => {
   try {
     const { protocolo } = req.params;
-    const { status } = req.body;
-    await AtendimentoModel.updateOne({ protocolo }, { status });
-    res.json({ mensagem: 'Status atualizado com sucesso!' });
+    const updateData = req.body;
+    await AtendimentoModel.updateOne({ protocolo }, { $set: updateData });
+    res.json({ mensagem: 'Atendimento atualizado com sucesso!' });
   } catch (err) {
-    res.status(500).json({ mensagem: 'Erro ao atualizar status.' });
+    res.status(500).json({ mensagem: 'Erro ao atualizar atendimento.' });
+  }
+});
+
+// DELETE: Excluir registro
+app.delete('/api/atendimentos/:protocolo', autenticarToken, async (req, res) => {
+  try {
+    const { protocolo } = req.params;
+    await AtendimentoModel.deleteOne({ protocolo });
+    res.json({ mensagem: 'Atendimento excluído com sucesso!' });
+  } catch (err) {
+    res.status(500).json({ mensagem: 'Erro ao excluir atendimento.' });
   }
 });
 
