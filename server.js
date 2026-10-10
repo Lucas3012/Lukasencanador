@@ -9,7 +9,6 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'minha_chave_secreta_local';
 const MONGO_URI = process.env.MONGO_URI;
 
-// Credenciais do Painel Admin (pode ser configurado via variáveis no Render)
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
 
@@ -26,7 +25,6 @@ app.use(express.static(__dirname));
 
 let botModule = null;
 
-// Schema do MongoDB para consulta dos atendimentos no Admin
 const AtendimentoSchema = new mongoose.Schema({
     protocolo: { type: String, required: true, unique: true },
     nome: String,
@@ -41,7 +39,6 @@ const AtendimentoSchema = new mongoose.Schema({
 
 const AtendimentoModel = mongoose.models.Chamado || mongoose.model('Chamado', AtendimentoSchema);
 
-// Middleware para verificar JWT no Admin
 function autenticarToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -54,12 +51,18 @@ function autenticarToken(req, res, next) {
   });
 }
 
-// Rota principal carrega o Dashboard Admin
+// Servir o painel admin
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin-dashboard.html'));
+  if (fs.existsSync(path.join(__dirname, 'admin.html'))) {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+  } else if (fs.existsSync(path.join(__dirname, 'admin-dashboard.html'))) {
+    res.sendFile(path.join(__dirname, 'admin-dashboard.html'));
+  } else {
+    res.status(404).send('Página admin não encontrada.');
+  }
 });
 
-// Rota de Login do Painel Admin
+// Endpoint de Login
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (username === ADMIN_USER && password === ADMIN_PASS) {
@@ -69,7 +72,7 @@ app.post('/api/login', (req, res) => {
   return res.status(401).json({ mensagem: 'Usuário ou senha incorretos.' });
 });
 
-// Rota para listar todos os Atendimentos (MongoDB)
+// Endpoint para buscar Atendimentos
 app.get('/api/atendimentos', autenticarToken, async (req, res) => {
   try {
     const lista = await AtendimentoModel.find().sort({ createdAt: -1 }).lean();
@@ -79,7 +82,7 @@ app.get('/api/atendimentos', autenticarToken, async (req, res) => {
   }
 });
 
-// Rota para atualizar o status do atendimento (Ex: Pendente -> Concluído)
+// Endpoint para atualizar Status
 app.patch('/api/atendimentos/:protocolo', autenticarToken, async (req, res) => {
   try {
     const { protocolo } = req.params;
@@ -91,27 +94,6 @@ app.patch('/api/atendimentos/:protocolo', autenticarToken, async (req, res) => {
   }
 });
 
-// Rota visual para abrir o QR Code no navegador
-app.get('/qr', (req, res) => {
-  const qr = botModule && botModule.getQRCode ? botModule.getQRCode() : null;
-  if (!qr) {
-    return res.send(`
-      <div style="text-align:center; padding: 50px; font-family: Arial;">
-        <h2>Aguardando geração do QR Code ou Bot já conectado...</h2>
-        <p>Atualize a página em alguns segundos.</p>
-        <script>setTimeout(() => location.reload(), 5000);</script>
-      </div>
-    `);
-  }
-  res.send(`
-    <div style="text-align:center; padding: 30px; font-family: Arial;">
-      <h2>Escaneie o QR Code com o seu WhatsApp</h2>
-      <img src="${qr}" style="width: 300px; height: 300px;" />
-      <script>setTimeout(() => location.reload(), 10000);</script>
-    </div>
-  `);
-});
-
 if (MONGO_URI) {
   mongoose.connect(MONGO_URI)
     .then(() => console.log('🍃 Conectado ao MongoDB com sucesso!'))
@@ -119,7 +101,7 @@ if (MONGO_URI) {
 }
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌐 Servidor a rodar na porta ${PORT}`);
+  console.log(`🌐 Servidor rodando na porta ${PORT}`);
   try {
     const botPath = fs.existsSync(path.join(__dirname, 'Botencanador', 'index.js'))
       ? './Botencanador/index.js'
