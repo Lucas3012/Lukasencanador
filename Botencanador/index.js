@@ -18,46 +18,47 @@ let GRUPO_SUPORTE_JID = null
 
 let clienteAtual = null
 
-// Schemas do Mongoose para Chamados e Suporte
-const chamadoSchema = new mongoose.Schema({
+// --- SCHEMAS UNIFICADOS NO MONGODB ---
+const AtendimentoSchema = new mongoose.Schema({
     protocolo: { type: String, required: true, unique: true },
     nome: String,
     telefone: String,
     endereco: String,
     tipoServico: String,
     detalhes: String,
-    origem: { type: String, default: 'Agendamento / Orçamento' },
+    origem: String, // 'Agendamento', 'Orçamento', 'Emergência', 'Suporte'
     status: { type: String, default: 'Pendente' },
     createdAt: { type: Date, default: Date.now }
-})
+});
 
-const suporteSchema = new mongoose.Schema({
-    protocolo: { type: String, required: true, unique: true },
-    nome: String,
-    telefone: String,
-    detalhes: String,
-    origem: { type: String, default: 'Atendimento Suporte Humano' },
-    status: { type: String, default: 'Pendente' },
-    createdAt: { type: Date, default: Date.now }
-})
+const AtendimentoModel = mongoose.models.Chamado || mongoose.model('Chamado', AtendimentoSchema);
 
-const Chamado = mongoose.models.Chamado || mongoose.model('Chamado', chamadoSchema)
-const Suporte = mongoose.models.Suporte || mongoose.model('Suporte', suporteSchema)
-
-async function salvarChamado(protocolo, dados) {
-    try { await Chamado.create({ protocolo, ...dados }) } catch (e) { console.error('Erro Mongo Chamado:', e.message) }
-}
-
-async function salvarSuporte(protocolo, dados) {
-    try { await Suporte.create({ protocolo, ...dados }) } catch (e) { console.error('Erro Mongo Suporte:', e.message) }
-}
-
-async function buscarAtendimento(protocolo) {
+// Função exclusiva para salvar diretamente no MongoDB Atlas
+async function salvarNoMongo(dados) {
     try {
-        let res = await Chamado.findOne({ protocolo }).lean()
-        if (!res) res = await Suporte.findOne({ protocolo }).lean()
-        return res
-    } catch (e) { return null }
+        if (mongoose.connection.readyState === 1) {
+            await AtendimentoModel.create(dados);
+            console.log(`💾 Atendimento #${dados.protocolo} salvo com sucesso no MongoDB!`);
+            return true;
+        } else {
+            console.error('❌ MongoDB não está conectado no momento de salvar.');
+            return false;
+        }
+    } catch (err) {
+        console.error('❌ Erro ao salvar no MongoDB:', err.message);
+        return false;
+    }
+}
+
+async function buscarAtendimentoNoMongo(protocolo) {
+    try {
+        if (mongoose.connection.readyState === 1) {
+            return await AtendimentoModel.findOne({ protocolo }).lean();
+        }
+    } catch (e) {
+        console.error('Erro ao buscar no Mongo:', e.message);
+    }
+    return null;
 }
 
 // Controle de Estados e Dados de Usuário na memória
@@ -110,7 +111,7 @@ Escolha uma das opções abaixo enviando o número desejado:
 4️⃣ *Verificar Status do Pedido / Chamado*
 5️⃣ *Tabela de Serviços e Preços Base*
 6️⃣ *Horários de Atendimento e Região*
-7️⃣ *Falar com Atendente Humano*`
+7️⃣ *Falar com Atendente Humano / Reclamações*`
 
 async function ligarbot() {
     if (clienteAtual) {
@@ -161,7 +162,7 @@ async function ligarbot() {
     clienteAtual = client
     client.ev.on('creds.update', saveCreds)
 
-    // --- MANIPULADOR DE MENSAGENS (MENU DE 1 A 7 E FLUXO) ---
+    // --- MANIPULADOR DE MENSAGENS E PERSISTÊNCIA NO MONGODB ---
     client.ev.on('messages.upsert', async ({ messages, type }) => {
         try {
             if (type !== 'notify') return
@@ -186,14 +187,12 @@ async function ligarbot() {
 
             const estado = userState[from]
 
-            // Voltar ao menu principal se digitar "menu" ou "inicio"
             if (normalizar(text) === 'menu' || normalizar(text) === 'inicio') {
                 userState[from] = 'inicio'
                 userData[from] = {}
                 return await escrever(MENU_PRINCIPAL)
             }
 
-            // --- FLUXO PRINCIPAL ---
             if (estado === 'inicio') {
                 if (text === '1' || text === '2') {
                     userData[from].tipoOperacao = text === '1' ? 'Agendamento' : 'Orçamento'
@@ -201,155 +200,171 @@ async function ligarbot() {
                     await escrever(`📋 *${userData[from].tipoOperacao}*: Por favor, digite o seu *Nome Completo*:`)
 
                 } else if (text === '3') {
-                    // Opção 3: Emergência
+                    // Opção 3: Emergência 24h
                     const prot = gerarProtocolo()
                     const fone = from.replace(/[^0-9]/g, '')
                     
-                    await salvarSuporte(prot, {
-                        nome: 'Cliente Urgente',
+                    await salvarNoMongo({
+                        protocolo: prot,
+                        nome: 'Cliente Emergência 24h',
                         telefone: fone,
+                        origem: 'Emergência',
                         detalhes: '🚨 Chamado de EMERGÊNCIA 24H disparado via WhatsApp.'
-                    })
+                    });
 
                     if (GRUPO_SUPORTE_JID) {
                         await client.sendMessage(GRUPO_SUPORTE_JID, {
                             text: `🚨 *ALERTA DE EMERGÊNCIA 24H*\n\n📌 *Protocolo:* #${prot}\n📱 *Telefone:* https://wa.me/${fone}\n⚠️ Cliente solicita atendimento imediato!`
-                        })
+                        });
                     }
 
-                    await escrever(`🚨 *ALERTA DE EMERGÊNCIA REGISTRADO!*\n\n📌 *Protocolo:* #${prot}\n\nO nosso técnico foi notificado com prioridade máxima e entrará em contacto com você imediatamente!`)
+                    await escrever(`🚨 *ALERTA DE EMERGÊNCIA REGISTRADO!*\n\n📌 *Protocolo:* #${prot}\n\nO nosso técnico foi notificado e entrará em contacto imediatamente!`);
 
                 } else if (text === '4') {
                     // Opção 4: Status do Pedido
                     userState[from] = 'aguardando_protocolo'
-                    await escrever('🔍 Por favor, digite o seu código de *Protocolo* (ex: 4582):')
+                    await escrever('🔍 Por favor, digite o seu código de *Protocolo* (ex: 4582):');
 
                 } else if (text === '5') {
-                    // Opção 5: Tabela de Serviços e Preços Base
                     const tabela = `🛠️ *Tabela de Serviços - Lukas Encanador*\n\n` +
                         `• *Caça Vazamento com Geofone:* A partir de R$ 150\n` +
                         `• *Desentupimento de Ralo/Pia:* A partir de R$ 100\n` +
                         `• *Instalação de Torneira/Sifão:* A partir de R$ 80\n` +
                         `• *Manutenção de Caixa D'água:* A partir de R$ 120\n` +
                         `• *Troca de Reparo de Válvula Hydra:* A partir de R$ 90\n\n` +
-                        `*Nota:* Os valores podem variar de acordo com a complexidade. Digite *1* para agendar uma visita técnica!`
-                    await escrever(tabela)
+                        `Digite *1* para agendar uma visita técnica!`;
+                    await escrever(tabela);
 
                 } else if (text === '6') {
-                    // Opção 6: Horários e Regiões
                     const infoServico = `📍 *Região de Atendimento & Horários*\n\n` +
                         `⏰ *Horário:* Segunda a Sábado das 07h às 19h\n` +
                         `🚨 *Plantão 24h:* Disponível para Emergências\n\n` +
-                        `🏙️ *Cidades Atendidas:* Centro e bairros da região metropolitana.\n\n` +
-                        `Digite *MENU* para voltar às opções.`
-                    await escrever(infoServico)
+                        `🏙️ *Cidades Atendidas:* Centro e região metropolitana.\n\n` +
+                        `Digite *MENU* para voltar.`;
+                    await escrever(infoServico);
 
                 } else if (text === '7') {
-                    // Opção 7: Atendente Humano
-                    const prot = gerarProtocolo()
-                    const fone = from.replace(/[^0-9]/g, '')
-
-                    await salvarSuporte(prot, {
-                        nome: 'Atendimento Direto',
-                        telefone: fone,
-                        detalhes: 'Cliente solicitou falar com atendente humano.'
-                    })
-
-                    if (GRUPO_SUPORTE_JID) {
-                        await client.sendMessage(GRUPO_SUPORTE_JID, {
-                            text: `👨‍🔧 *SOLICITAÇÃO DE ATENDENTE HUMANO*\n\n📌 *Protocolo:* #${prot}\n📱 *Cliente:* https://wa.me/${fone}`
-                        })
-                    }
-
-                    await escrever(`👨‍🔧 *Atendimento Humano Solicita do*\n\n📌 *Protocolo:* #${prot}\n\nUm dos nossos atendentes irá responder a esta conversa em breve. Aguarde um momento!`)
+                    // Opção 7: Suporte / Reclamações / Atendente Humano
+                    userData[from].tipoOperacao = 'Suporte / Reclamação';
+                    userState[from] = 'aguardando_nome_suporte';
+                    await escrever(`👨‍🔧 *Atendimento Humano / Reclamação*\n\nPor favor, digite o seu *Nome Completo*:`);
 
                 } else {
-                    await escrever(MENU_PRINCIPAL)
+                    await escrever(MENU_PRINCIPAL);
                 }
 
             } else if (estado === 'aguardando_nome') {
-                userData[from].nome = text
-                userState[from] = 'aguardando_endereco'
-                await escrever(`📍 Obrigado, *${text}*. Agora digite o seu *Endereço Completo* (Com Ponto de Referência):`)
+                userData[from].nome = text;
+                userState[from] = 'aguardando_endereco';
+                await escrever(`📍 Obrigado, *${text}*. Agora digite o seu *Endereço Completo* (Com Ponto de Referência):`);
 
             } else if (estado === 'aguardando_endereco') {
-                userData[from].endereco = text
-                userState[from] = 'aguardando_detalhes'
-                await escrever(`🛠️ Descreva brevemente o problema ou serviço necessário (ex: vazamento na cozinha, ralo entupido):`)
+                userData[from].endereco = text;
+                userState[from] = 'aguardando_detalhes';
+                await escrever(`🛠️ Descreva brevemente o problema ou serviço necessário:`);
 
             } else if (estado === 'aguardando_detalhes') {
-                userData[from].detalhes = text
-                const prot = gerarProtocolo()
-                const fone = from.replace(/[^0-9]/g, '')
-                const tipo = userData[from].tipoOperacao || 'Agendamento/Orçamento'
+                userData[from].detalhes = text;
+                const prot = gerarProtocolo();
+                const fone = from.replace(/[^0-9]/g, '');
+                const tipo = userData[from].tipoOperacao || 'Agendamento/Orçamento';
 
-                await salvarChamado(prot, {
+                // Salva exclusivamente no MongoDB Atlas
+                await salvarNoMongo({
+                    protocolo: prot,
                     nome: userData[from].nome,
                     telefone: fone,
                     endereco: userData[from].endereco,
                     tipoServico: tipo,
                     detalhes: userData[from].detalhes,
                     origem: tipo
-                })
+                });
 
-                const msgGrupo = `📋 *NOVO CHAMADO REGISTRADO (#${prot})*\n\n` +
+                const msgGrupo = `📋 *NOVO ${tipo.toUpperCase()} REGISTRADO (#${prot})*\n\n` +
                     `👤 *Cliente:* ${userData[from].nome}\n` +
                     `📱 *Contato:* https://wa.me/${fone}\n` +
                     `📍 *Endereço:* ${userData[from].endereco}\n` +
-                    `🛠️ *Serviço:* ${tipo}\n` +
-                    `📝 *Detalhes:* ${userData[from].detalhes}`
+                    `📝 *Detalhes:* ${userData[from].detalhes}`;
 
-                const targetGroup = (tipo === 'Agendamento' ? GRUPO_CHAMADOS_JID : GRUPO_ORCAMENTOS_JID) || GRUPO_CHAMADOS_JID
-
+                const targetGroup = (tipo === 'Agendamento' ? GRUPO_CHAMADOS_JID : GRUPO_ORCAMENTOS_JID) || GRUPO_CHAMADOS_JID;
                 if (targetGroup) {
-                    await client.sendMessage(targetGroup, { text: msgGrupo })
+                    await client.sendMessage(targetGroup, { text: msgGrupo });
                 }
 
-                await escrever(`🎉 *${tipo} Registrado com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n👤 *Nome:* ${userData[from].nome}\n📍 *Endereço:* ${userData[from].endereco}\n\nA nossa equipe entrará em contacto em breve para confirmar o horário!`)
+                await escrever(`🎉 *${tipo} Registrado com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n👤 *Nome:* ${userData[from].nome}\n📍 *Endereço:* ${userData[from].endereco}\n\nO registo foi guardado no nosso sistema e a equipa entrará em contacto!`);
 
-                userState[from] = 'inicio'
-                userData[from] = {}
+                userState[from] = 'inicio';
+                userData[from] = {};
+
+            } else if (estado === 'aguardando_nome_suporte') {
+                userData[from].nome = text;
+                userState[from] = 'aguardando_detalhes_suporte';
+                await escrever(`📝 Por favor, descreva detalhadamente a sua *Dúvida, Reclamação ou Solicitação de Atendente*:`);
+
+            } else if (estado === 'aguardando_detalhes_suporte') {
+                userData[from].detalhes = text;
+                const prot = gerarProtocolo();
+                const fone = from.replace(/[^0-9]/g, '');
+
+                // Salva Suporte/Reclamação exclusivamente no MongoDB Atlas
+                await salvarNoMongo({
+                    protocolo: prot,
+                    nome: userData[from].nome,
+                    telefone: fone,
+                    origem: 'Suporte / Reclamação',
+                    detalhes: userData[from].detalhes
+                });
+
+                if (GRUPO_SUPORTE_JID) {
+                    await client.sendMessage(GRUPO_SUPORTE_JID, {
+                        text: `👨‍🔧 *SUPORTE / RECLAMAÇÃO REGISTRADA (#${prot})*\n\n👤 *Cliente:* ${userData[from].nome}\n📱 *Contato:* https://wa.me/${fone}\n📝 *Mensagem:* ${userData[from].detalhes}`
+                    });
+                }
+
+                await escrever(`👨‍🔧 *Solicitação Registrada com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n\nO seu pedido de suporte/reclamação foi gravado no sistema e enviado à nossa equipa. Aguarde retorno!`);
+
+                userState[from] = 'inicio';
+                userData[from] = {};
 
             } else if (estado === 'aguardando_protocolo') {
-                const busca = await buscarAtendimento(text.replace(/[^0-9]/g, ''))
+                const busca = await buscarAtendimentoNoMongo(text.replace(/[^0-9]/g, ''));
                 if (busca) {
-                    await escrever(`🔎 *Status do Protocolo #${busca.protocolo}*\n\n👤 *Cliente:* ${busca.nome || 'N/I'}\n🛠️ *Serviço:* ${busca.tipoServico || busca.origem}\n📌 *Status Atual:* *${busca.status || 'Pendente'}*\n📅 *Data:* ${new Date(busca.createdAt).toLocaleDateString('pt-BR')}`)
+                    await escrever(`🔎 *Status do Protocolo #${busca.protocolo}*\n\n👤 *Cliente:* ${busca.nome || 'N/I'}\n🛠️ *Tipo:* ${busca.origem || busca.tipoServico}\n📌 *Status Atual:* *${busca.status || 'Pendente'}*\n📅 *Data:* ${new Date(busca.createdAt).toLocaleDateString('pt-BR')}`);
                 } else {
-                    await escrever(`❌ Não encontramos nenhum chamado ou pedido com o protocolo *#${text}*. Verifique o número e tente novamente ou digite *MENU*.`)
+                    await escrever(`❌ Não encontramos nenhum registo com o protocolo *#${text}* no MongoDB. Verifique o número ou digite *MENU*.`);
                 }
-                userState[from] = 'inicio'
+                userState[from] = 'inicio';
             }
 
         } catch (err) {
-            console.error('❌ Erro ao processar mensagem:', err.message)
+            console.error('❌ Erro ao processar mensagem:', err.message);
         }
-    })
+    });
 
     client.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update
+        const { connection, lastDisconnect } = update;
 
         if (connection === 'open') {
-            console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!')
-            await client.sendPresenceUpdate('available')
+            console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!');
+            await client.sendPresenceUpdate('available');
 
-            GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS)
-            GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
-            GRUPO_SUPORTE_JID = await obterJidGrupo(client, LINK_GRUPO_SUPORTE)
+            GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS);
+            GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS);
+            GRUPO_SUPORTE_JID = await obterJidGrupo(client, LINK_GRUPO_SUPORTE);
         }
         
         if (connection === 'close') {
-            const reason = lastDisconnect?.error?.output?.statusCode
-            console.log(`🔄 Conexão encerrada (código ${reason || 'desconhecido'}).`)
+            const reason = lastDisconnect?.error?.output?.statusCode;
+            console.log(`🔄 Conexão encerrada (código ${reason || 'desconhecido'}).`);
 
             if (reason === DisconnectReason.loggedOut || reason === 401) {
-                console.log('🧹 Limpando registos inválidos...')
-                await limparSessaoInvalida()
-                setTimeout(() => ligarbot(), 5000)
+                await limparSessaoInvalida();
+                setTimeout(() => ligarbot(), 5000);
             } else {
-                setTimeout(() => ligarbot(), 5000)
+                setTimeout(() => ligarbot(), 5000);
             }
         }
-    })
+    });
 }
 
-ligarbot()
+ligarbot();
