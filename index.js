@@ -7,10 +7,10 @@ const fs = require('fs')
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = (process.env.BOT_NUMBER || process.env.WHATSAPP_NUMBER || '').replace(/[^0-9]/g, '')
 
-// Links dos Grupos do WhatsApp
-const LINK_GRUPO_CHAMADOS = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n'
-const LINK_GRUPO_ORCAMENTOS = 'https://chat.whatsapp.com/HYFutIc2BYi6I0EyM6sBsQ'
-const LINK_GRUPO_SUPORTE = 'https://chat.whatsapp.com/F0UYp2zG5pTAgtSE0dwctX'
+// Links exatos dos Grupos do WhatsApp fornecidos
+const LINK_GRUPO_CHAMADOS = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n?s=cl&p=a&mlu=4&ilr=4'
+const LINK_GRUPO_ORCAMENTOS = 'https://chat.whatsapp.com/HYFutIc2BYi6I0EyM6sBsQ?s=cl&p=a&mlu=4&ilr=4'
+const LINK_GRUPO_SUPORTE = 'https://chat.whatsapp.com/F0UYp2zG5pTAgtSE0dwctX?s=cl&p=a&mlu=4&ilr=4'
 
 let GRUPO_CHAMADOS_JID = null
 let GRUPO_ORCAMENTOS_JID = null
@@ -168,6 +168,9 @@ async function ligarbot() {
             const from = info.key.remoteJid
             if (from.endsWith('@g.us') || from.endsWith('@newsletter')) return
 
+            try { await client.presenceSubscribe(from) } catch (e) {}
+            await client.sendPresenceUpdate('available', from)
+
             const textRaw = info.message.conversation || info.message.extendedTextMessage?.text || ""
             const text = textRaw.trim()
             if (!text) return
@@ -176,6 +179,7 @@ async function ligarbot() {
                 await client.sendPresenceUpdate('composing', from)
                 await esperar(1200)
                 await client.sendMessage(from, { text: msg }, { quoted: info })
+                await client.sendPresenceUpdate('available', from)
             }
 
             if (!userState[from]) userState[from] = 'inicio'
@@ -283,12 +287,13 @@ async function ligarbot() {
                     `📍 *Endereço:* ${userData[from].endereco}\n` +
                     `📝 *Detalhes:* ${userData[from].detalhes}`;
 
-                const targetGroup = (tipo === 'Agendamento' ? GRUPO_CHAMADOS_JID : GRUPO_ORCAMENTOS_JID) || GRUPO_CHAMADOS_JID;
+                // Direcionamento exato para o grupo correspondente (Opção 1 -> Chamados / Opção 2 -> Orçamentos)
+                const targetGroup = (tipo === 'Agendamento' ? GRUPO_CHAMADOS_JID : GRUPO_ORCAMENTOS_JID);
                 if (targetGroup) {
                     await client.sendMessage(targetGroup, { text: msgGrupo });
                 }
 
-                await escrever(`🎉 *${tipo} Registrado com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${foneContato}\n📍 *Endereço:* ${userData[from].endereco}\n\nO registo foi guardado no MongoDB e a equipa entrará em contacto!`);
+                await escrever(`🎉 *${tipo} Registrado com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n👤 *Nome:* ${userData[from].nome}\n📞 *Telefone:* ${foneContato}\n📍 *Endereço:* ${userData[from].endereco}\n\nO registo foi guardado no MongoDB e enviado para a nossa equipa!`);
 
                 userState[from] = 'inicio';
                 userData[from] = {};
@@ -311,13 +316,14 @@ async function ligarbot() {
                     detalhes: userData[from].detalhes
                 });
 
+                // Envia reclamações e suporte para o grupo dedicado
                 if (GRUPO_SUPORTE_JID) {
                     await client.sendMessage(GRUPO_SUPORTE_JID, {
                         text: `👨‍🔧 *SUPORTE / RECLAMAÇÃO REGISTRADA (#${prot})*\n\n👤 *Cliente:* ${userData[from].nome}\n📱 *Contato:* https://wa.me/${fone}\n📝 *Mensagem:* ${userData[from].detalhes}`
                     });
                 }
 
-                await escrever(`👨‍🔧 *Solicitação Registrada com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n\nO seu pedido foi gravado no sistema. Aguarde retorno!`);
+                await escrever(`👨‍🔧 *Solicitação Registrada com Sucesso!*\n\n📌 *Protocolo:* #${prot}\n\nO seu pedido de suporte/reclamação foi enviado para a equipa responsável. Aguarde retorno!`);
 
                 userState[from] = 'inicio';
                 userData[from] = {};
@@ -344,14 +350,13 @@ async function ligarbot() {
             console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP (MODO 24/7 ONLINE ATIVADO)!');
             await client.sendPresenceUpdate('available');
 
-            // Mantém o status "Online" continuamente a cada 30 segundos
             keepOnlineInterval = setInterval(async () => {
                 try {
                     if (clienteAtual) {
                         await clienteAtual.sendPresenceUpdate('available');
                     }
                 } catch (e) {}
-            }, 30000);
+            }, 15000);
 
             GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS);
             GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS);
