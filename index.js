@@ -8,7 +8,6 @@ const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = (process.env.BOT_NUMBER || process.env.WHATSAPP_NUMBER || '').replace(/[^0-9]/g, '')
 
 let clienteAtual = null
-let gerandoCodigo = false
 
 async function limparSessaoInvalida() {
     try {
@@ -64,7 +63,7 @@ async function ligarbot() {
         logger: pino({ level: 'silent' }),
         browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
-        markOnlineOnConnect: false,
+        markOnlineOnConnect: true, // Força o bot a ficar Online no WhatsApp
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 10000
@@ -73,43 +72,56 @@ async function ligarbot() {
     clienteAtual = client
     client.ev.on('creds.update', saveCreds)
 
+    // --- ESCUTA E RESPOSTA AUTOMÁTICA A MENSAGENS ---
+    client.ev.on('messages.upsert', async ({ messages, type }) => {
+        try {
+            if (type !== 'notify') return
+            const info = messages[0]
+            if (!info || !info.message || info.key.fromMe) return
+
+            const from = info.key.remoteJid
+            // Ignora mensagens de grupos e canais/novidades
+            if (from.endsWith('@g.us') || from.endsWith('@newsletter')) return
+
+            const texto = info.message.conversation || info.message.extendedTextMessage?.text || ""
+            console.log(`📩 Mensagem recebida de ${from}: ${texto}`)
+
+            // Simula presença "A escrever..."
+            await client.sendPresenceUpdate('composing', from)
+            await new Promise(r => setTimeout(r, 1500))
+
+            const menu = `👋 *Olá! Bem-vindo ao atendimento do Lukas Encanador.*\n\nComo posso ajudar hoje?\n\n1️⃣ *Agendar Serviço*\n2️⃣ *Solicitar Orçamento*\n7️⃣ *Falar com Atendente*`
+
+            if (texto.trim() === '1') {
+                await client.sendMessage(from, { text: '📋 *Agendamento*: Por favor, envie o seu *Nome completo* e *Endereço com Ponto de Referência*.' }, { quoted: info })
+            } else if (texto.trim() === '2') {
+                await client.sendMessage(from, { text: '💰 *Orçamento*: Descreva brevemente o problema ou serviço que necessita (ex: vazamento na pia, instalação de torneira).' }, { quoted: info })
+            } else if (texto.trim() === '7') {
+                await client.sendMessage(from, { text: '👨‍🔧 Um atendente humano responderá a esta conversa em breve. Aguarde um momento!' }, { quoted: info })
+            } else {
+                await client.sendMessage(from, { text: menu }, { quoted: info })
+            }
+        } catch (err) {
+            console.error('❌ Erro ao responder mensagem:', err.message)
+        }
+    })
+
     client.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update
 
-        if (connection === 'connecting') {
-            console.log('⏳ A ligar aos servidores do WhatsApp...')
-        }
-
-        if (!client.authState.creds.registered && !gerandoCodigo && BOT_NUMBER) {
-            gerandoCodigo = true
-            console.log(`📱 A preparar geração de código para ${BOT_NUMBER}...`)
-            
-            // Aguarda 6 segundos para estabilizar o socket de forma segura
-            await new Promise(r => setTimeout(r, 6000))
-
-            try {
-                let codigo = await client.requestPairingCode(BOT_NUMBER)
-                console.log(`\n==============================================`)
-                console.log(`🔑 CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
-                console.log(`==============================================\n`)
-            } catch (err) {
-                console.error('❌ Falha ao solicitar código:', err.message)
-                gerandoCodigo = false
-            }
-        }
-        
         if (connection === 'open') {
-            console.log('🎉 BOT CONECTADO COM SUCESSO AO WHATSAPP!')
-            gerandoCodigo = false
+            console.log('🎉 ==============================================')
+            console.log('🎉 BOT OFICIALMENTE CONECTADO E ONLINE NO WHATSAPP!')
+            console.log('🎉 ==============================================')
+            await client.sendPresenceUpdate('available')
         }
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
             console.log(`🔄 Conexão encerrada (código ${reason || 'desconhecido'}).`)
-            gerandoCodigo = false
 
             if (reason === DisconnectReason.loggedOut || reason === 401) {
-                console.log('🧹 Sessão expirada/inválida. A limpar registos...')
+                console.log('🧹 Sessão expirada/desconectada no telemóvel. A limpar registos...')
                 await limparSessaoInvalida()
                 setTimeout(() => ligarbot(), 5000)
             } else {
