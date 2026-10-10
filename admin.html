@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Lukas Encanador</title>
+    <style>
+        :root { --primary: #0275d8; --success: #5cb85c; --danger: #d9534f; --bg: #f4f6f9; --text: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        header { background: #fff; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; color: var(--primary); font-size: 24px; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; font-size: 14px; }
+        th { background: #f8f9fa; color: #495057; }
+        .badge { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #fff; }
+        .badge-pendente { background: #f0ad4e; }
+        .badge-concluido { background: var(--success); }
+        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; color: white; }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .login-box { max-width: 400px; margin: 100px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+        .login-box input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .login-box button { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- SECÇÃO DE LOGIN -->
+    <div id="loginSection" class="login-box">
+        <h2>Painel Admin</h2>
+        <p>Lukas Encanador</p>
+        <input type="text" id="username" placeholder="Utilizador (ex: admin)">
+        <input type="password" id="password" placeholder="Palavra-passe">
+        <button onclick="fazerLogin()">Entrar</button>
+        <p id="loginErro" style="color: red; font-size: 12px; margin-top: 10px;"></p>
+    </div>
+
+    <!-- PAINEL PRINCIPAL -->
+    <div id="dashboardSection" class="hidden">
+        <header>
+            <h1>Painel de Chamados e Atendimentos</h1>
+            <button class="btn btn-danger" onclick="terminarSessao()">Terminar Sessão</button>
+        </header>
+        <div class="container">
+            <div class="card">
+                <h3>Lista de Atendimentos Recebidos (WhatsApp / MongoDB)</h3>
+                <button class="btn btn-success" onclick="carregarAtendimentos()" style="margin-bottom: 15px;">Atualizar Lista</button>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Protocolo</th>
+                                <th>Cliente</th>
+                                <th>Telefone</th>
+                                <th>Origem / Tipo</th>
+                                <th>Endereço / Detalhes</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaAtendimentos">
+                            <tr><td colspan="8" style="text-align: center;">A carregar dados do MongoDB...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+
+        async function fazerLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            try {
+                const res = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                const data = await res.json();
+                if (res.ok && data.token) {
+                    localStorage.setItem('admin_token', data.token);
+                    verificarAutenticacao();
+                } else {
+                    document.getElementById('loginErro').innerText = data.mensagem || 'Credenciais inválidas';
+                }
+            } catch (e) {
+                document.getElementById('loginErro').innerText = 'Erro ao conectar ao servidor';
+            }
+        }
+
+        function verificarAutenticacao() {
+            const token = localStorage.getItem('admin_token');
+            if (token) {
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                carregarAtendimentos();
+            } else {
+                document.getElementById('loginSection').classList.remove('hidden');
+                document.getElementById('dashboardSection').classList.add('hidden');
+            }
+        }
+
+        function terminarSessao() {
+            localStorage.removeItem('admin_token');
+            verificarAutenticacao();
+        }
+
+        async function carregarAtendimentos() {
+            const token = localStorage.getItem('admin_token');
+            try {
+                const res = await fetch(`${API_URL}/api/atendimentos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    terminarSessao();
+                    return;
+                }
+                const lista = await res.json();
+                const tbody = document.getElementById('tabelaAtendimentos');
+                tbody.innerHTML = '';
+
+                if (!lista || lista.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Nenhum atendimento registado ainda.</td></tr>';
+                    return;
+                }
+
+                lista.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>#${item.protocolo || '-'}</td>
+                        <td>${item.nome || 'Não informado'}</td>
+                        <td><a href="https://wa.me/${item.telefone}" target="_blank">${item.telefone || '-'}</a></td>
+                        <td><b>${item.origem || item.tipoServico || 'Geral'}</b></td>
+                        <td>${item.endereco ? '<b>End:</b> ' + item.endereco + '<br>' : ''}${item.detalhes || '-'}</td>
+                        <td><span class="badge ${item.status === 'Concluído' ? 'badge-concluido' : 'badge-pendente'}">${item.status || 'Pendente'}</span></td>
+                        <td>${new Date(item.createdAt || Date.now()).toLocaleString('pt-BR')}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="mudarStatus('${item.protocolo}', 'Concluído')">Concluir</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Erro ao carregar atendimentos:', e);
+            }
+        }
+
+        async function mudarStatus(protocolo, novoStatus) {
+            const token = localStorage.getItem('admin_token');
+            try {
+                await fetch(`${API_URL}/api/atendimentos/${protocolo}`, {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ status: novoStatus })
+                });
+                carregarAtendimentos();
+            } catch (e) {
+                alert('Erro ao atualizar status');
+            }
+        }
+
+        window.onload = verificarAutenticacao;
+    </script>
+</body>
+</html>
