@@ -62,8 +62,8 @@ async function ligarbot() {
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: Browsers.ubuntu('Chrome'), // Assinatura atualizada
-        printQRInTerminal: false,
+        browser: Browsers.ubuntu('Desktop'),
+        printQRInTerminal: true, // Imprime o QR Code em modo texto no log do Render
         markOnlineOnConnect: true,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
@@ -74,29 +74,31 @@ async function ligarbot() {
     client.ev.on('creds.update', saveCreds)
 
     client.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update
+        const { connection, lastDisconnect, qr } = update
 
-        if (!client.authState.creds.registered && !gerandoCodigo) {
+        if (qr) {
+            console.log('\n==============================================')
+            console.log('📸 QR CODE GERADO NOS LOGS! ESCANEIE NO WHATSAPP')
+            console.log('==============================================\n')
+        }
+
+        if (!client.authState.creds.registered && !gerandoCodigo && BOT_NUMBER) {
             gerandoCodigo = true
-            if (BOT_NUMBER) {
-                console.log(`📱 Solicitando código para o número: ${BOT_NUMBER}...`)
-                await new Promise(r => setTimeout(r, 6000))
-                try {
-                    let codigo = await client.requestPairingCode(BOT_NUMBER)
-                    console.log(`\n==============================================`)
-                    console.log(`🔑 NOVO CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
-                    console.log(`==============================================\n`)
-                } catch (err) {
-                    console.error('❌ Erro ao solicitar código:', err.message)
-                    gerandoCodigo = false
-                }
-            } else {
-                console.log('⚠️ Variável BOT_NUMBER não configurada!')
+            console.log(`📱 Tentando solicitar Código para ${BOT_NUMBER}...`)
+            await new Promise(r => setTimeout(r, 6000))
+            try {
+                let codigo = await client.requestPairingCode(BOT_NUMBER)
+                console.log(`\n==============================================`)
+                console.log(`🔑 CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
+                console.log(`==============================================\n`)
+            } catch (err) {
+                console.error('⚠️ Erro no Pairing Code (Aconselhado usar o QR Code acima):', err.message)
+                gerandoCodigo = false
             }
         }
         
         if (connection === 'open') {
-            console.log('🎉 BOT CONECTADO COM SUCESSO!')
+            console.log('🎉 BOT CONECTADO COM SUCESSO AO WHATSAPP!')
             gerandoCodigo = false
         }
         
