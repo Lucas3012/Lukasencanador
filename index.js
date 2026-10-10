@@ -7,7 +7,7 @@ const fs = require('fs')
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = (process.env.BOT_NUMBER || process.env.WHATSAPP_NUMBER || '').replace(/[^0-9]/g, '')
 
-// Links exatos dos Grupos do WhatsApp fornecidos
+// Links exatos dos Grupos do WhatsApp
 const LINK_GRUPO_CHAMADOS = 'https://chat.whatsapp.com/EwUIug1DbI3IWZGkpbrJ8n?s=cl&p=a&mlu=4&ilr=4'
 const LINK_GRUPO_ORCAMENTOS = 'https://chat.whatsapp.com/HYFutIc2BYi6I0EyM6sBsQ?s=cl&p=a&mlu=4&ilr=4'
 const LINK_GRUPO_SUPORTE = 'https://chat.whatsapp.com/F0UYp2zG5pTAgtSE0dwctX?s=cl&p=a&mlu=4&ilr=4'
@@ -95,7 +95,7 @@ async function limparSessaoInvalida() {
 
 const MENU_PRINCIPAL = `👋 *Atendimento Lukas Encanador*
 
-Escolha uma das opções abaixo enviando o número desejado:
+Escolha uma das opções abaixo enviando o número ou escrevendo o que deseja:
 
 1️⃣ *Agendar Serviço* (Vazamentos, Instalações, Desentupimentos)
 2️⃣ *Solicitar Orçamento Gratuito*
@@ -173,6 +173,7 @@ async function ligarbot() {
 
             const textRaw = info.message.conversation || info.message.extendedTextMessage?.text || ""
             const text = textRaw.trim()
+            const txtNorm = normalizar(text)
             if (!text) return
 
             async function escrever(msg) {
@@ -187,19 +188,28 @@ async function ligarbot() {
 
             const estado = userState[from]
 
-            if (normalizar(text) === 'menu' || normalizar(text) === 'inicio') {
+            if (txtNorm === 'menu' || txtNorm === 'inicio' || txtNorm === 'voltar') {
                 userState[from] = 'inicio'
                 userData[from] = {}
                 return await escrever(MENU_PRINCIPAL)
             }
 
             if (estado === 'inicio') {
-                if (text === '1' || text === '2') {
-                    userData[from].tipoOperacao = text === '1' ? 'Agendamento' : 'Orçamento'
+                // Reconhecimento por Número OU por Escrita
+                const isOpcao1 = text === '1' || txtNorm.includes('agendar') || txtNorm.includes('agendamento') || txtNorm.includes('visita') || txtNorm.includes('desentupir') || txtNorm.includes('vazamento');
+                const isOpcao2 = text === '2' || txtNorm.includes('orcamento') || txtNorm.includes('cotacao') || txtNorm.includes('valor') || txtNorm.includes('quanto custa');
+                const isOpcao3 = text === '3' || txtNorm.includes('emergencia') || txtNorm.includes('urgente') || txtNorm.includes('inundacao') || txtNorm.includes('socorro');
+                const isOpcao4 = text === '4' || txtNorm.includes('status') || txtNorm.includes('acompanhar') || txtNorm.includes('protocolo') || txtNorm.includes('pedido');
+                const isOpcao5 = text === '5' || txtNorm.includes('tabela') || txtNorm.includes('preco') || txtNorm.includes('precos') || txtNorm.includes('servicos');
+                const isOpcao6 = text === '6' || txtNorm.includes('horario') || txtNorm.includes('regiao') || txtNorm.includes('cidade') || txtNorm.includes('atende');
+                const isOpcao7 = text === '7' || txtNorm.includes('atendente') || txtNorm.includes('humano') || txtNorm.includes('reclamacao') || txtNorm.includes('suporte') || txtNorm.includes('falar');
+
+                if (isOpcao1 || isOpcao2) {
+                    userData[from].tipoOperacao = isOpcao1 ? 'Agendamento' : 'Orçamento'
                     userState[from] = 'aguardando_nome'
                     await escrever(`📋 *${userData[from].tipoOperacao}*: Por favor, digite o seu *Nome Completo*:`)
 
-                } else if (text === '3') {
+                } else if (isOpcao3) {
                     const prot = gerarProtocolo()
                     const fone = from.replace(/[^0-9]/g, '')
                     
@@ -219,21 +229,21 @@ async function ligarbot() {
 
                     await escrever(`🚨 *ALERTA DE EMERGÊNCIA REGISTRADO!*\n\n📌 *Protocolo:* #${prot}\n\nO nosso técnico foi notificado e entrará em contacto imediatamente!`);
 
-                } else if (text === '4') {
+                } else if (isOpcao4) {
                     userState[from] = 'aguardando_protocolo'
                     await escrever('🔍 Por favor, digite o seu código de *Protocolo* (ex: 4582):');
 
-                } else if (text === '5') {
+                } else if (isOpcao5) {
                     const tabela = `🛠️ *Tabela de Serviços - Lukas Encanador*\n\n` +
                         `• *Caça Vazamento com Geofone:* A partir de R$ 150\n` +
                         `• *Desentupimento de Ralo/Pia:* A partir de R$ 100\n` +
                         `• *Instalação de Torneira/Sifão:* A partir de R$ 80\n` +
                         `• *Manutenção de Caixa D'água:* A partir de R$ 120\n` +
                         `• *Troca de Reparo de Válvula Hydra:* A partir de R$ 90\n\n` +
-                        `Digite *1* para agendar uma visita técnica!`;
+                        `Escreva *AGENDAR* ou digite *1* para solicitar uma visita!`;
                     await escrever(tabela);
 
-                } else if (text === '6') {
+                } else if (isOpcao6) {
                     const infoServico = `📍 *Região de Atendimento & Horários*\n\n` +
                         `⏰ *Horário:* Segunda a Sábado das 07h às 19h\n` +
                         `🚨 *Plantão 24h:* Disponível para Emergências\n\n` +
@@ -241,7 +251,7 @@ async function ligarbot() {
                         `Digite *MENU* para voltar.`;
                     await escrever(infoServico);
 
-                } else if (text === '7') {
+                } else if (isOpcao7) {
                     userData[from].tipoOperacao = 'Suporte / Reclamação';
                     userState[from] = 'aguardando_nome_suporte';
                     await escrever(`👨‍🔧 *Atendimento Humano / Reclamação*\n\nPor favor, digite o seu *Nome Completo*:`);
@@ -287,7 +297,6 @@ async function ligarbot() {
                     `📍 *Endereço:* ${userData[from].endereco}\n` +
                     `📝 *Detalhes:* ${userData[from].detalhes}`;
 
-                // Direcionamento exato para o grupo correspondente (Opção 1 -> Chamados / Opção 2 -> Orçamentos)
                 const targetGroup = (tipo === 'Agendamento' ? GRUPO_CHAMADOS_JID : GRUPO_ORCAMENTOS_JID);
                 if (targetGroup) {
                     await client.sendMessage(targetGroup, { text: msgGrupo });
@@ -316,7 +325,6 @@ async function ligarbot() {
                     detalhes: userData[from].detalhes
                 });
 
-                // Envia reclamações e suporte para o grupo dedicado
                 if (GRUPO_SUPORTE_JID) {
                     await client.sendMessage(GRUPO_SUPORTE_JID, {
                         text: `👨‍🔧 *SUPORTE / RECLAMAÇÃO REGISTRADA (#${prot})*\n\n👤 *Cliente:* ${userData[from].nome}\n📱 *Contato:* https://wa.me/${fone}\n📝 *Mensagem:* ${userData[from].detalhes}`
