@@ -3,18 +3,20 @@ const useMongoDBAuthState = require('./mongoAuth')
 const mongoose = require('mongoose')
 const pino = require('pino')
 const fs = require('fs')
+const qrcodeTerminal = require('qrcode-terminal')
+const QRCode = require('qrcode')
 
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = (process.env.BOT_NUMBER || process.env.WHATSAPP_NUMBER || '').replace(/[^0-9]/g, '')
 
 let clienteAtual = null
-let gerandoCodigo = false
+let qrCodeBase64 = null
 
 async function limparSessaoInvalida() {
     try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.connection.collection('sessions').deleteMany({})
-            console.log('🧹 Sessão limpa no MongoDB Atlas.')
+            console.log('🧹 Sessão antiga limpa no MongoDB.')
         }
     } catch (err) {}
     try {
@@ -63,7 +65,6 @@ async function ligarbot() {
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: Browsers.ubuntu('Desktop'),
-        printQRInTerminal: true, // Imprime o QR Code em modo texto no log do Render
         markOnlineOnConnect: true,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
@@ -78,34 +79,23 @@ async function ligarbot() {
 
         if (qr) {
             console.log('\n==============================================')
-            console.log('📸 QR CODE GERADO NOS LOGS! ESCANEIE NO WHATSAPP')
+            console.log('📸 ESCANEIE O QR CODE ABAIXO NO SEU WHATSAPP:')
             console.log('==============================================\n')
-        }
-
-        if (!client.authState.creds.registered && !gerandoCodigo && BOT_NUMBER) {
-            gerandoCodigo = true
-            console.log(`📱 Tentando solicitar Código para ${BOT_NUMBER}...`)
-            await new Promise(r => setTimeout(r, 6000))
+            qrcodeTerminal.generate(qr, { small: true })
+            
             try {
-                let codigo = await client.requestPairingCode(BOT_NUMBER)
-                console.log(`\n==============================================`)
-                console.log(`🔑 CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
-                console.log(`==============================================\n`)
-            } catch (err) {
-                console.error('⚠️ Erro no Pairing Code (Aconselhado usar o QR Code acima):', err.message)
-                gerandoCodigo = false
-            }
+                qrCodeBase64 = await QRCode.toDataURL(qr)
+            } catch (e) {}
         }
         
         if (connection === 'open') {
             console.log('🎉 BOT CONECTADO COM SUCESSO AO WHATSAPP!')
-            gerandoCodigo = false
+            qrCodeBase64 = null
         }
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
             console.log(`🔄 Conexão encerrada (código ${reason}).`)
-            gerandoCodigo = false
 
             if (reason === DisconnectReason.loggedOut || reason === 401) {
                 await limparSessaoInvalida()
@@ -115,6 +105,12 @@ async function ligarbot() {
             }
         }
     })
+}
+
+// Exporta o QRCode gerado para poder ser servido no Express
+module.exports = {
+    ligarbot,
+    getQRCode: () => qrCodeBase64
 }
 
 ligarbot()
