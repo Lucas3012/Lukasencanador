@@ -17,7 +17,7 @@ let GRUPO_ORCAMENTOS_JID = null
 let GRUPO_SUPORTE_JID = null
 
 let clienteAtual = null
-let aguardandoEmparelhamento = false
+let gerandoCodigo = false
 
 const chamadoSchema = new mongoose.Schema({
     protocolo: { type: String, required: true, unique: true },
@@ -85,7 +85,7 @@ async function obterJidGrupo(client, linkGrupo) {
     return null
 }
 
-async function limparSessaoMongo() {
+async function limparSessaoInvalida() {
     try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.connection.collection('sessions').deleteMany({})
@@ -178,27 +178,27 @@ async function ligarbot() {
     client.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update
 
-        if (!client.authState.creds.registered && !aguardandoEmparelhamento) {
-            aguardandoEmparelhamento = true
+        if (!client.authState.creds.registered && !gerandoCodigo) {
+            gerandoCodigo = true
             const Numero = BOT_NUMBER.replace(/[^0-9]/g, '')
             if (Numero) {
-                console.log(`📱 A solicitar Código para ${Numero}...`)
-                await esperar(6000)
+                console.log(`📱 Solicitando Novo Código de Emparelhamento para ${Numero}...`)
+                await esperar(4000)
                 try {
                     let codigo = await client.requestPairingCode(Numero)
                     console.log(`\n==============================================`)
-                    console.log(`🔑 CÓDIGO DE EMPARELHAMENTO VÁLIDO: ${codigo}`)
+                    console.log(`🔑 CÓDIGO DE EMPARELHAMENTO: ${codigo}`)
                     console.log(`==============================================\n`)
                 } catch (err) {
                     console.error('❌ Erro ao solicitar código:', err.message)
-                    aguardandoEmparelhamento = false
+                    gerandoCodigo = false
                 }
             }
         }
         
         if (connection === 'open') {
             console.log('🎉 BOT CONECTADO E PRONTO NO WHATSAPP!')
-            aguardandoEmparelhamento = false
+            gerandoCodigo = false
             GRUPO_CHAMADOS_JID = await obterJidGrupo(client, LINK_GRUPO_CHAMADOS)
             GRUPO_ORCAMENTOS_JID = await obterJidGrupo(client, LINK_GRUPO_ORCAMENTOS)
             GRUPO_SUPORTE_JID = await obterJidGrupo(client, LINK_GRUPO_SUPORTE)
@@ -208,17 +208,12 @@ async function ligarbot() {
             const reason = lastDisconnect?.error?.output?.statusCode
             console.log(`🔄 Conexão fechada (código ${reason || 'desconhecido'}).`)
 
+            gerandoCodigo = false
+
             if (reason === DisconnectReason.loggedOut || reason === 401) {
-                if (aguardandoEmparelhamento) {
-                    console.log('⏳ A aguardar introdução do código no telemóvel... Reagendando tentativa em 45s.')
-                    setTimeout(() => {
-                        aguardandoEmparelhamento = false
-                        ligarbot()
-                    }, 45000)
-                } else {
-                    await limparSessaoMongo()
-                    setTimeout(() => ligarbot(), 5000)
-                }
+                console.log('❌ Sessão inválida. A limpar registos para novo arranque...')
+                await limparSessaoInvalida()
+                setTimeout(() => ligarbot(), 3000)
             } else {
                 setTimeout(() => ligarbot(), 5000)
             }
