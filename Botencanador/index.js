@@ -3,22 +3,23 @@ const useMongoDBAuthState = require('./mongoAuth')
 const mongoose = require('mongoose')
 const pino = require('pino')
 const fs = require('fs')
-const qrcodeTerminal = require('qrcode-terminal')
-const QRCode = require('qrcode')
 
 const MONGO_URI = process.env.MONGO_URI || ''
 const BOT_NUMBER = (process.env.BOT_NUMBER || process.env.WHATSAPP_NUMBER || '').replace(/[^0-9]/g, '')
 
 let clienteAtual = null
-let qrCodeBase64 = null
+let gerandoCodigo = false
 
 async function limparSessaoInvalida() {
+    console.log('🧹 Executando limpeza profunda de sessões...')
     try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.connection.collection('sessions').deleteMany({})
-            console.log('🧹 Sessão antiga limpa no MongoDB.')
+            console.log('✅ Coleção "sessions" zerada com sucesso no MongoDB!')
         }
-    } catch (err) {}
+    } catch (err) {
+        console.error('Erro ao limpar Mongo:', err.message)
+    }
     try {
         if (fs.existsSync('./sessao')) {
             fs.rmSync('./sessao', { recursive: true, force: true })
@@ -60,57 +61,66 @@ async function ligarbot() {
 
     const { version } = await fetchLatestBaileysVersion()
     
+    // Configuração com identificação oficial de navegação
     const client = makeWASocket({
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: Browsers.ubuntu('Desktop'),
-        markOnlineOnConnect: true,
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 10000
+        browser: ['Chrome (Linux)', 'Chrome', '120.0.0.0'],
+        printQRInTerminal: false,
+        markOnlineOnConnect: false,
+        connectTimeoutMs: 90000,
+        defaultQueryTimeoutMs: 90000,
+        keepAliveIntervalMs: 15000,
+        retryRequestOptions: {
+            maxRetries: 5
+        }
     })
 
     clienteAtual = client
     client.ev.on('creds.update', saveCreds)
 
     client.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update
+        const { connection, lastDisconnect } = update
 
-        if (qr) {
-            console.log('\n==============================================')
-            console.log('📸 ESCANEIE O QR CODE ABAIXO NO SEU WHATSAPP:')
-            console.log('==============================================\n')
-            qrcodeTerminal.generate(qr, { small: true })
+        if (!client.authState.creds.registered && !gerandoCodigo && BOT_NUMBER) {
+            gerandoCodigo = true
+            console.log(`📱 Solicitando código de emparelhamento para: ${BOT_NUMBER}...`)
+            
+            // Aguarda 10 segundos antes de pedir o código para o servidor estabilizar
+            await new Promise(r => setTimeout(r, 10000))
             
             try {
-                qrCodeBase64 = await QRCode.toDataURL(qr)
-            } catch (e) {}
+                let codigo = await client.requestPairingCode(BOT_NUMBER)
+                console.log(`\n==============================================`)
+                console.log(`🔑 CÓDIGO DE EMPARELHAMENTO NOVO: ${codigo}`)
+                console.log(`==============================================\n`)
+            } catch (err) {
+                console.error('❌ Erro ao solicitar código:', err.message)
+                gerandoCodigo = false
+            }
         }
         
         if (connection === 'open') {
             console.log('🎉 BOT CONECTADO COM SUCESSO AO WHATSAPP!')
-            qrCodeBase64 = null
+            gerandoCodigo = false
         }
         
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
             console.log(`🔄 Conexão encerrada (código ${reason}).`)
+            gerandoCodigo = false
 
             if (reason === DisconnectReason.loggedOut || reason === 401) {
+                console.log('⚠️ Sessão rejeitada/expirada. Efetuando limpeza completa...')
                 await limparSessaoInvalida()
-                setTimeout(() => ligarbot(), 5000)
+                // Aguarda 15 segundos para reiniciar e evitar bloqueio por requisições seguidas
+                setTimeout(() => ligarbot(), 15000)
             } else {
                 setTimeout(() => ligarbot(), 5000)
             }
         }
     })
-}
-
-// Exporta o QRCode gerado para poder ser servido no Express
-module.exports = {
-    ligarbot,
-    getQRCode: () => qrCodeBase64
 }
 
 ligarbot()
